@@ -36,7 +36,6 @@ public:
 /// lexer and updates CurTok with its results.
 static TOKEN CurTok;
 static std::deque<TOKEN> tok_buffer;
-static TOKEN lookahead[3];
 
 static TOKEN getNextToken() {
 
@@ -129,7 +128,32 @@ static bool decl_list_prime() {
 
 /////////////////
 
-static bool decl() { return var_decl() || fun_decl(); }
+static bool decl() { 
+  switch (CurTok.type) {
+    case (VOID_TOK):
+      return fun_decl();
+    case (INT_TOK):
+    case (FLOAT_TOK):
+    case (BOOL_TOK):
+      TOKEN old = CurTok;
+      TOKEN lookahead_1 = getNextToken();
+      TOKEN lookahead_2 = getNextToken();
+      switch (lookahed_2.type) {
+        case (COMMA):
+          putBackToken(lookahead_1);
+          putBackToken(lookahead_2);
+          CurTok = old;
+          return var_decl();
+        case (LPAR):
+          putBackToken(lookahead_1);
+          putBackToken(lookahead_2);
+          CurTok = old;
+          return fun_decl();
+      }
+
+  }
+  return var_decl() || fun_decl(); 
+}
 
 static bool var_decl() { return var_type() && match(IDENT) && match(SC); }
 
@@ -142,7 +166,9 @@ static bool var_type() {
   return match(INT_TOK) || match(FLOAT_TOK) || match(BOOL_TOK);
 }
 
-static bool type_spec() { return match(VOID_TOK) || var_type(); }
+static bool type_spec() { 
+  return match(VOID_TOK) || var_type();
+}
 
 /////////////////
 
@@ -329,9 +355,18 @@ static bool return_stmt_B() {
   return match(SC);
 }
 
-//will need 2 lookaheads due to IDENT
+//will need a lookaheads due to IDENT
 static bool expr() {
-
+  if (CurTok.type == IDENT) {
+      TOKEN old = CurTok;
+      TOKEN lookahead = getNextToken();
+      if (lookahead.type == ASSIGN) {
+        CurTok = old;
+        putBackToken(lookahead);
+        return match(IDENT) && match(ASSIGN) && expr();
+      }
+  }
+  return or_val();
 }
 
 static bool or_val() { return and_val() && or_val_prime(); }
