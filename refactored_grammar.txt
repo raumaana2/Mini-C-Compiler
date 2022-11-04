@@ -1,0 +1,141 @@
+program -> extern_list decl_list
+| decl_list
+
+extern_list -> extern | extern extern_list
+
+extern -> "extern" type_spec IDENT "(" params ")" ";"
+
+
+
+
+decl_list -> decl | decl decl_list
+
+
+decl -> var_decl 
+| fun_decl
+
+var_decl -> var_type IDENT ";"
+
+type_spec -> "void"
+| var_type
+
+var_type -> "int" | "float" | "bool"
+
+fun_decl -> type_spec IDENT "(" params ")" block
+
+
+
+params -> param_list
+| "void" | ϵ
+
+
+
+param_list -> param | "," param param_list
+
+
+
+param -> var_type IDENT
+
+block -> "{" local_decls stmt_list "}"
+
+
+
+
+local_decls -> local_decls_prime
+
+local_decls_prime -> local_decl local_decls_prime | ϵ
+
+
+
+local_decl -> var_type IDENT ";"
+
+
+stmt_list -> stmt_list_prime
+
+stmt_list_prime -> stmt stmt_list_prime | ϵ
+
+stmt -> expr_stmt
+| block
+| if_stmt
+| while_stmt
+| return_stmt
+
+expr_stmt -> expr ";"
+| ";"
+
+while_stmt -> "while" "(" expr ")" stmt
+
+if_stmt -> "if" "(" expr ")" block else_stmt
+
+
+else_stmt -> "else" block
+| ϵ
+
+
+
+return_stmt -> "return" return_stmt_B
+
+return_stmt_B -> ";"
+| expr ";"
+
+
+
+
+expr -> IDENT "=" expr
+| or_val
+
+
+or_val -> and_val
+| "||" and_val or_val
+
+and_val -> eq_val 
+| "&&" eq_val and_val
+
+
+eq_val -> comp_val 
+|"==" comp_val eq_val
+| "!=" comp_val eq_val
+
+
+comp_val -> add_val 
+| "<=" add_val comp_val
+| "<" add_val comp_val
+| ">=" add_val comp_val
+| ">" add_val comp_val
+
+
+
+
+add_val -> mul_val 
+| "+" mul_val add_val
+
+
+
+mul_val -> unary
+| "*" unary mul_val
+| "/" unary mul_val
+| "%" unary mul_val
+
+unary ->  "-" unary
+| "!" unary
+| identifiers
+
+
+
+identifiers -> "(" expr ")"
+| IDENT identifiers_B
+| INT_LIT 
+| FLOAT_LIT
+| BOOL_LIT
+
+
+
+identifiers_B -> "(" args ")"
+| ϵ 
+
+
+args -> arg_list
+| ϵ
+
+
+arg_list -> expr | "," expr arg_list
