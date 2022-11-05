@@ -320,4 +320,3 @@ static TOKEN gettok() {
   columnNo++;
   return returnTok(s, int(ThisChar));
 }
-

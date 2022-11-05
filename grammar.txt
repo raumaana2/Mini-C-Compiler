@@ -5,6 +5,9 @@ extern_list -> extern extern_list_prime
 
 extern_list_prime -> extern extern_list_prime | ϵ
 
+
+
+
 extern -> "extern" type_spec IDENT "(" params ")" ";"
 
 
