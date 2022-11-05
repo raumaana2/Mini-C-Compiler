@@ -508,83 +508,138 @@ std::unique_ptr<ast_node> decl() {
   }
 }
 
-std::unique_ptr<ast_node> var_decl() {
-  auto tok = cur_tok;
-  auto variable_declaration = std::make_unique<var_decl_ast>(tok);
+std::unique_ptr<var_decl_ast> var_decl() {
+  TOKEN type = var_type();
+  TOKEN name = cur_tok;
+  auto variable_declaration = std::make_unique<var_decl_ast>(type, name);
   match(IDENT);
   match(SC);
 
   return variable_declaration;
 }
 
-std::unique_ptr<ast_node> fun_decl() {
+std::unique_ptr<function_ast> fun_decl() {
   auto type = type_spec();
   match(IDENT);
   match(LPAR); 
-  
-  params()
-  match(RPAR)
+  if (cur_tok.type == VOID_TOK) {
+
+  } 
+  std::vector<std::unique_ptr<ast_node>> parameters = params();
+
+  match(RPAR);
   block();
+
+  auto scope_block = block();
+  auto prototype = std::make_unique<prototype_ast>(type, parameters);
+  auto function = std::make_unique<function_ast>(std::move(prototype), block);
+
+  return std::move(function);
+
 }
 
-std::unique_ptr<ast_node> var_type() {       
-  switch(cur_tok.type) {
-    case(INT_TOK):
-      return 
-    case(FLOAT_TOK):
-      return
-    case(BOOL_TOK):
-      return std::make
-  }                                             
+TOKEN var_type() {    
+  if (cur_tok.type == INT_TOK || FLOAT_TOK || BOOL_TOK) {
+    return cur_tok;
+  }   
+  //error             
+  exit(0);                           
 }
 
-std::unique_ptr<ast_node> type_spec() { 
-  return match(VOID_TOK) || var_type();
-}
-
-
-std::unique_ptr<ast_node> params() {
-  switch (cur_tok.type) {
-  case (RPAR):
-    return true;
-  case (BOOL_TOK):
-  case (FLOAT_TOK):
-  case (INT_TOK):
-    return param_list();
-  case (VOID_TOK):
-    return match(VOID_TOK);
+TOKEN type_spec() { 
+  if (cur_tok.type == VOID_TOK) {
+    return cur_tok;
   }
-  return false;
+  return var_type();
 }
 
-std::unique_ptr<ast_node> param_list() {
-  return param() && param_list_prime();
-}
+std::vector<std::unique_ptr<ast_node>> parameter_list_vector;
 
-std::unique_ptr<ast_node> param_list_prime() {
+std::vector<std::unique_ptr<ast_node>> params() {
   switch (cur_tok.type) {
   case (RPAR):
     return nullptr;
-  case (COMMA):
-    return match(COMMA) && param() && param_list_prime();
+  case (BOOL_TOK):
+  case (FLOAT_TOK):
+  case (INT_TOK):
+    return parameter_list_vector;
+  case (VOID_TOK):
+    TOKEN tok = cur_tok;
+    match(VOID_TOK);
+    return VOID_TOK;
   }
-  return false;
+  //error
+  exit(0);
 }
+
+
+void param_list() {
+  if (cur_tok.type == COMMA) {
+    match(COMMA);
+    auto parameter = param();
+    parameter_list_vector.push_back(parameter);
+    param_list();
+  } else {
+    auto parameter = param();
+    parameter_list_vector.push_back(parameter);
+  }
+  
+
+}
+
+
+
+// std::unique_ptr<ast_node> param_list_prime() {
+//   switch (cur_tok.type) {
+//   case (RPAR):
+//     return nullptr;
+//   case (COMMA):
+//     return match(COMMA) && param() && param_list_prime();
+//   }
+//   return false;
+// }
 
 std::unique_ptr<ast_node> param() {
-  return var_type() && match(IDENT); 
+  TOKEN type = var_type();
+  TOKEN name = cur_tok;
+  match(IDENT);
+  auto parameter = std::make_unique<var_decl_ast>(type, name);
+  return std::move(parameter);
 }
+
+std::vector<std::unique_ptr<ast_node>> local_declaration_vector;
+std::vector<std::unique_ptr<ast_node>> statement_vector;
 
 std::unique_ptr<ast_node> block() {
-  return match(LBRA) && local_decls() && stmt_list() && match(RBRA);
+  match(LBRA);
+  local_decls();
+  auto local_declarations = local_declaration_vector;
+  stmt_list();
+  auto statement_list = statement_vector;
+  auto scope = std::make_unique<scope_ast>(local_declarations, statement_list);
+  match(RBRA);
+
+  return std::move(scope);
 }
 
-std::unique_ptr<ast_node> local_decls() {
+
+void local_decls() {
+
   switch (cur_tok.type) {
+    case (NE):
+    case (MOD):
+    case (AND):
+    case (ASTERIX):
+    case (PLUS):
+    case (MINUS):
+    case (DIV):
+    case (SC):
+    case (LT):
+    case (LE):
+    case (GT):
+    case (GE):
     case (NOT):
     case (LPAR):
-    case (MINUS):
-    case (SC):
     case (IF):
     case (RETURN):
     case (WHILE):
@@ -594,47 +649,32 @@ std::unique_ptr<ast_node> local_decls() {
     case (FLOAT_LIT):
     case (IDENT):
     case (INT_LIT):
-      return nullptr;
+      return;
   }
-  return local_decls_prime(); 
+
+  auto local_declaration = local_decl();
+  local_declaration_vector.push_back(local_declaration);
+  local_decls();
 }
 
-std::unique_ptr<ast_node> local_decls_prime() {
-  switch (cur_tok.type) {
-    case (NOT):
-    case (LPAR):
-    case (MINUS):
-    case (SC):
-    case (IF):
-    case (RETURN):
-    case (WHILE):
-    case (LBRA):
-    case (RBRA):
-    case (BOOL_LIT):
-    case (FLOAT_LIT):
-    case (IDENT):
-    case (INT_LIT):
-      return true;
-  }
-  return local_decl() && local_decls_prime();
-}
 
 std::unique_ptr<ast_node> local_decl() { 
-  return var_type() && match(IDENT) && match(SC);
+  TOKEN type = var_type();
+  TOKEN identifier = cur_tok;
+  match(IDENT);
+  auto variable_declaration = std::make_unique<var_decl_ast>(type, identifier);
+  match(SC);
+  return std::move(variable_declaration);
 }
 
-std::unique_ptr<ast_node> stmt_list() { 
-  if (cur_tok.type == RBRA) {
-    return true;
-  }
-  return stmt_list_prime();
-}
 
-std::unique_ptr<ast_node> stmt_list_prime() {
-  if (cur_tok.type == RBRA) {
-    return true;
+
+void stmt_list() {
+  if (cur_tok.type != RBRA) {
+    auto statement = stmt();
+    statement_vector.push_back(statement);
+    stmt_list();
   }
-  return stmt() && stmt_list_prime();
 }
 
 std::unique_ptr<ast_node> stmt() {
@@ -647,19 +687,15 @@ std::unique_ptr<ast_node> stmt() {
   case (FLOAT_LIT):
   case (IDENT):
   case (INT_LIT):
-    get_next_token();
+
     return expr_stmt();
   case (LBRA):
-    get_next_token();
     return block();
   case (IF):
-    get_next_token();
     return if_stmt();
   case (WHILE):
-    get_next_token();
     return while_stmt();
   case (RETURN):
-    get_next_token();
     return return_stmt();
   }
   std::cerr << "Expected stmt" << std::endl;
@@ -686,7 +722,15 @@ std::unique_ptr<ast_node> expr_stmt() {
 }
 
 std::unique_ptr<ast_node> while_stmt() {
-  return match(WHILE) && match(LPAR) && expr() && match(RPAR) && stmt();
+  match(WHILE);
+  match(LPAR);
+  auto expression = expr();
+  match(RPAR);
+  auto statement = stmt();
+
+  auto while_statement = std::make_unique<while_ast>(std::move(expression), std::move(statement));
+
+  return std::move(while_statement);
 }
 
 std::unique_ptr<ast_node> if_stmt() {
@@ -695,9 +739,13 @@ std::unique_ptr<ast_node> if_stmt() {
   auto expression = expr();
   match(RPAR);
   auto if_block = block();
-  auto else_statement = else_stmt;
+  auto else_statement = else_stmt();
 
-  return std::make_unique<if_ast>(std::move(expression), std::move(if_block), std::move(else_statement));
+  auto if_statement = std::make_unique<if_ast>(
+    std::move(expression), std::move(if_block), std::move(else_statement)
+  );
+
+  return std::move(if_statement);
 }
 
 std::unique_ptr<ast_node> else_stmt() {
@@ -719,12 +767,15 @@ std::unique_ptr<ast_node> else_stmt() {
   }
   match(ELSE);
   auto else_block = block();
-  return else_block;
+  return std::move(else_block);
 }
 
 std::unique_ptr<ast_node> return_stmt() {
   match(RETURN);
-  return return_stmt_B();
+  auto return_statement = std::make_unique<return_ast>(std::move(return_stmt_B));
+
+
+  return std::move(return_statement);
 }
 
 std::unique_ptr<ast_node> return_stmt_B() {
@@ -738,7 +789,7 @@ std::unique_ptr<ast_node> return_stmt_B() {
     case (INT_LIT):
       auto expression = expr();
       match(SC);
-      return expression;
+      return std::move(expression);
   }
   match(SC);
   return nullptr;
@@ -772,6 +823,7 @@ std::unique_ptr<ast_node> expr() {
 
 std::unique_ptr<ast_node> or_val() {
   return and_val() && or_val_prime(); 
+  if 
 }
 
 std::unique_ptr<ast_node> or_val_prime() {
@@ -1096,25 +1148,26 @@ class call_expr_ast : public ast_node {
     std::vector<std::unique_ptr<ast_node>> Args;
 
 public:
-    call_expr_ast(const std::string &callee,
+    call_expr_ast(TOKEN callee,
         std::vector<std::unique_ptr<ast_node>> args) :
     Callee(callee), Args(std::move(Args)) {}
 };
 
 
 //class for function signature
-class prototype_ast {
+class prototype_ast : public ast_node {
+    TOKEN Type;
     TOKEN Name;
-    std::vector<std::string> Args;
+    std::vector<std::unique_ptr<ast_node>> Args;
 
 public:
-    prototype_ast(TOKEN name, std::vector<std::string> Args) 
-    : Name(name), Args(std::move(Args)) {}
+    prototype_ast(TOKEN type, TOKEN name, std::vector<std::unique_ptr<ast_node>> args) 
+    : Type(type), Name(name), Args(std::move(args)) {}
 };
 
 
 //class for function signature and body
-class function_ast {
+class function_ast : public ast_node  {
     std::unique_ptr<prototype_ast> Proto;
     std::unique_ptr<ast_node> Body;
 
@@ -1125,10 +1178,8 @@ public:
 };
 
 
-
-
 // class for if statement structure
-class if_ast {
+class if_ast : public ast_node {
     std::unique_ptr<ast_node> Condition;
     std::unique_ptr<ast_node> If_body;
     std::unique_ptr<ast_node> Else_body;
@@ -1139,7 +1190,7 @@ public:
 };
 
 // class for while statement structure
-class while_ast {
+class while_ast : public ast_node {
     std::unique_ptr<ast_node> Condition;
     std::unique_ptr<ast_node> Body;
     
@@ -1149,7 +1200,7 @@ public:
 };
 
 //class for return statement structure
-class return_ast {
+class return_ast : public ast_node {
   std::unique_ptr<ast_node> Body;
 
 public:
@@ -1158,14 +1209,15 @@ public:
 
 //class for variable declaration structure
 class var_decl_ast : public ast_node {
-  TOKEN Token;
+  TOKEN Type;
+  TOKEN Name;
 
 public:
-  var_decl_ast(TOKEN token) : Token(token)  {}
+  var_decl_ast(TOKEN type, TOKEN name) : Type(type), Name(name)  {}
 };
 
 // class for variable assignment structure
-class var_assign_ast {
+class var_assign_ast : public ast_node {
   TOKEN Name;
   std::unique_ptr<ast_node> Expr;
 
@@ -1175,6 +1227,20 @@ public:
   }
 };
 
+
+class scope_ast : public ast_node {
+  std::vector<std::unique_ptr<ast_node>> Lists;
+
+public:
+  scope_ast(std::vector<std::unique_ptr<ast_node>> lists) : Lists(std::move(lists)) {}
+};
+
+class identifier_ast : public ast_node {
+  TOKEN Identifier;
+
+public: 
+  identifier_ast(TOKEN identifier) : Identifier(identifier) {}
+}
 
 
 

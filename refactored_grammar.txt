@@ -41,18 +41,15 @@ block -> "{" local_decls stmt_list "}"
 
 
 
-local_decls -> local_decls_prime
-
-local_decls_prime -> local_decl local_decls_prime | ϵ
+local_decls -> local_decl local_decls | ϵ
 
 
 
 local_decl -> var_type IDENT ";"
 
 
-stmt_list -> stmt_list_prime
 
-stmt_list_prime -> stmt stmt_list_prime | ϵ
+stmt_list-> stmt stmt_list | ϵ
 
 stmt -> expr_stmt
 | block
