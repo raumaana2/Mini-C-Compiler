@@ -1148,11 +1148,11 @@ static std::unique_ptr<Module> TheModule;
 // // AST Printer
 // //===----------------------------------------------------------------------===//
 
-// inline llvm::raw_ostream &operator<<(llvm::raw_ostream &os,
-//                                      const ast_node &ast) {
-//   os << ast.to_string();
-//   return os;
-// }
+inline llvm::raw_ostream &operator<<(llvm::raw_ostream &os,
+                                     const ast_node &ast) {
+  os << ast.to_string();
+  return os;
+}
 
 //===----------------------------------------------------------------------===//
 // Main driver code.
