@@ -1,7 +1,10 @@
 #ifndef AST_HPP
 #define AST_HPP
 
-#include "common.h"
+#include "common.hpp"
+
+using namespace llvm;
+using namespace llvm::sys;
 
 //===----------------------------------------------------------------------===//
 // AST nodes
@@ -11,8 +14,8 @@
 class ast_node {
 public:
   virtual ~ast_node() {}
-  virtual Value *codegen() = 0;
-  virtual std::string to_string() const {};
+  // virtual Value *codegen() = 0;
+  // virtual std::string to_string() const {};
 };
 
 /// int_ast_node - Class for integer literals like 1, 2, 10,
@@ -22,7 +25,7 @@ class literal_ast_node : public ast_node {
 
 public:
   literal_ast_node(TOKEN tok) : Tok(tok) {}
-  virtual Value *codegen() override;
+  // virtual Value *codegen() override;
   // virtual std::string to_string() const override {
   // return a sting representation of this AST node
   //};
@@ -37,7 +40,7 @@ public:
 
 // public:
 //   int_ast_node(TOKEN tok, int val) : Val(val), Tok(tok) {}
-//   virtual Value *codegen() override;
+  // virtual Value *codegen() override;
 //   // virtual std::string to_string() const override {
 //   // return a sting representation of this AST node
 //   //};
@@ -51,7 +54,7 @@ public:
 
 // public:
 //   float_ast_node(TOKEN tok, float val) : Val(val), Tok(tok) {}
-//   virtual Value *codegen() override;
+  // virtual Value *codegen() override;
 //   // virtual std::string to_string() const override {
 //   // return a sting representation of this AST node
 //   //};
@@ -66,7 +69,7 @@ public:
 
 // public:
 //   bool_ast_node(TOKEN tok, bool val) : Val(val), Tok(tok) {}
-//   virtual Value *codegen() override;
+  // virtual Value *codegen() override;
 //   // virtual std::string to_string() const override {
 //   // return a sting representation of this AST node
 //   //};
@@ -79,7 +82,7 @@ class void_ast_node : public ast_node {
 
 public:
   void_ast_node(TOKEN tok) : Tok(tok) {}
-  virtual Value *codegen() override;
+  // virtual Value *codegen() override;
   // virtual std::string to_string() const override {
   // return a sting representation of this AST node
   //};
@@ -115,7 +118,7 @@ class call_expr_ast : public ast_node {
 public:
     call_expr_ast(TOKEN callee,
         std::vector<std::unique_ptr<ast_node>> args) :
-    Callee(callee), Args(std::move(Args)) {}
+    Callee(callee), Args(std::move(args)) {}
 };
 
 
@@ -194,10 +197,12 @@ public:
 
 
 class scope_ast : public ast_node {
-  std::vector<std::unique_ptr<ast_node>> Lists;
+  std::vector<std::unique_ptr<ast_node>> List_a;
+  std::vector<std::unique_ptr<ast_node>> List_b;
 
 public:
-  scope_ast(std::vector<std::unique_ptr<ast_node>> lists) : Lists(std::move(lists)) {}
+  scope_ast(std::vector<std::unique_ptr<ast_node>> list_a, std::vector<std::unique_ptr<ast_node>> list_b) : 
+    List_a(std::move(list_a)), List_b(std::move(list_b)) {}
 };
 
 class identifier_ast : public ast_node {

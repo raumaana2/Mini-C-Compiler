@@ -1,4 +1,4 @@
-
+#include "common.hpp"
 
 //===----------------------------------------------------------------------===//
 // Recursive Descent Parser - Function call for each production
@@ -26,18 +26,19 @@ std::unique_ptr<ast_node> program() {
   std::vector<std::unique_ptr<ast_node>> decl_vector;
 
   if (cur_tok.type == EXTERN) {
-    extern_list(extern_vector);
-    decl_list(decl_vector);
+    extern_list(std::move(extern_vector));
+    decl_list(std::move(decl_vector));
+
   } else if (cur_tok.type == BOOL_TOK || FLOAT_TOK || INT_TOK || VOID_TOK)  {
-    decl_list(decl_vector);
+    decl_list(std::move(decl_vector));
   } else {
     //error
     exit(0);
   }
-  auto extern_lis = extern_vector;
-  auto declaration_list = decl_vector;
+  // auto extern_lis = extern_vector;
+  // auto declaration_list = decl_vector;
 
-  auto scope = std::make_unique<scope_ast>(std::move(extern_lis), std::move(declaration_list));
+  auto scope = std::make_unique<scope_ast>(std::move(extern_vector), std::move(decl_vector));
 
   return std::move(scope);
 
@@ -62,12 +63,13 @@ void extern_list_prime(std::vector<std::unique_ptr<ast_node>> list) {
 std::unique_ptr<ast_node> extern_() {
   match(EXTERN);
   auto type = type_spec();
+  TOKEN identifier = cur_tok;
   match(IDENT);
   match(LPAR);
   auto parameters = params();
   match(RPAR);
   match(SC);
-  auto prototype = std::make_unique<prototype_ast>(type_spec, parameters);
+  auto prototype = std::make_unique<prototype_ast>(type, identifier, std::move(parameters));
 
   return std::move(prototype);
 }
@@ -113,6 +115,7 @@ std::unique_ptr<ast_node> decl() {
       }
 
   }
+  exit(0);
 }
 
 std::unique_ptr<var_decl_ast> var_decl() {
@@ -127,6 +130,7 @@ std::unique_ptr<var_decl_ast> var_decl() {
 
 std::unique_ptr<function_ast> fun_decl() {
   auto type = type_spec();
+  TOKEN identifier = cur_tok;
   match(IDENT);
   match(LPAR); 
   if (cur_tok.type == VOID_TOK) {
@@ -135,11 +139,11 @@ std::unique_ptr<function_ast> fun_decl() {
   std::vector<std::unique_ptr<ast_node>> parameters = params();
 
   match(RPAR);
-  block();
+  auto scope = block();
 
   auto scope_block = block();
-  auto prototype = std::make_unique<prototype_ast>(type, parameters);
-  auto function = std::make_unique<function_ast>(std::move(prototype), block);
+  auto prototype = std::make_unique<prototype_ast>(type, identifier, std::move(parameters));
+  auto function = std::make_unique<function_ast>(std::move(prototype), std::move(scope));
 
   return std::move(function);
 
@@ -170,7 +174,7 @@ std::vector<std::unique_ptr<ast_node>> params() {
   case (BOOL_TOK):
   case (FLOAT_TOK):
   case (INT_TOK):
-    param_list(parameter_list);
+    param_list(std::move(parameter_list));
     return std::move(parameter_list);
   case (VOID_TOK):
     TOKEN tok = cur_tok;
@@ -223,10 +227,10 @@ std::unique_ptr<ast_node> block() {
   stmt_list(std::move(statement_list));
 
   //make copies of the lists
-  auto local_declarations = local_declaration_list;
-  auto statements = statement_list;
+  // auto local_declarations = local_declaration_list;
+  // auto statements = statement_list;
 
-  auto scope = std::make_unique<scope_ast>(local_declarations, statements);
+  auto scope = std::make_unique<scope_ast>(std::move(local_declaration_list), std::move(statement_list));
 
   match(RBRA);
 
@@ -390,7 +394,8 @@ std::unique_ptr<ast_node> else_stmt() {
 
 std::unique_ptr<ast_node> return_stmt() {
   match(RETURN);
-  auto return_statement = std::make_unique<return_ast>(std::move(return_stmt_B));
+  auto return_body = return_stmt_B();
+  auto return_statement = std::make_unique<return_ast>(std::move(return_body));
 
 
   return std::move(return_statement);
@@ -505,6 +510,7 @@ std::unique_ptr<ast_node> and_val_prime(std::unique_ptr<ast_node> lhs) {
       )
     );
   }
+  exit(0);
 }
 
 std::unique_ptr<ast_node> eq_val() {
@@ -516,29 +522,30 @@ std::unique_ptr<ast_node> eq_val() {
 std::unique_ptr<ast_node> eq_val_prime(std::unique_ptr<ast_node> lhs) {
   TOKEN op;
   switch (cur_tok.type) {
-  case(AND):
-  case(RPAR):
-  case(SC):
-  case(OR):
-  case(COMMA):
-    return nullptr;
-  case (EQ):
-  case (NE):
-    op = cur_tok;
-    get_next_token();
+    case(AND):
+    case(RPAR):
+    case(SC):
+    case(OR):
+    case(COMMA):
+      return nullptr;
+    case (EQ):
+    case (NE):
+      op = cur_tok;
+      get_next_token();
 
-    auto lhs_prime = comp_val();
-    
-    auto rhs = eq_val_prime(std::move(lhs));
+      auto lhs_prime = comp_val();
+      
+      auto rhs = eq_val_prime(std::move(lhs));
 
-    return std::move(
-      std::make_unique<binary_expr_ast>(
-        op,
-        std::move(lhs_prime),
-        std::move(rhs)
-      )
-    );
+      return std::move(
+        std::make_unique<binary_expr_ast>(
+          op,
+          std::move(lhs_prime),
+          std::move(rhs)
+        )
+      );
   }
+  exit(0);
 }
 
 std::unique_ptr<ast_node> comp_val() { 
@@ -578,6 +585,7 @@ std::unique_ptr<ast_node> comp_val_prime(std::unique_ptr<ast_node> lhs) {
       )
     );
   }
+  exit(0);
 }
 
 std::unique_ptr<ast_node> add_val() {
@@ -619,6 +627,7 @@ std::unique_ptr<ast_node> add_val_prime(std::unique_ptr<ast_node> lhs) {
         )
       );
   }
+  exit(0);
 }
 
 std::unique_ptr<ast_node> mul_val() {
@@ -662,6 +671,7 @@ std::unique_ptr<ast_node> mul_val_prime(std::unique_ptr<ast_node> lhs) {
         )
       );
   }
+  exit(0);
 }
 
 std::unique_ptr<ast_node> unary() {
@@ -681,6 +691,7 @@ std::unique_ptr<ast_node> unary() {
     
     return std::move(unary_expression);
   }
+  exit(0);
 }
 
 std::unique_ptr<ast_node> identifiers() {
@@ -722,7 +733,7 @@ std::unique_ptr<ast_node> identifiers_B() {
   std::vector<std::unique_ptr<ast_node>> arguments = args();
   
   match(RPAR);
-  auto function_call = std::make_unique<call_expr_ast>(callee, arguments);
+  auto function_call = std::make_unique<call_expr_ast>(callee, std::move(arguments));
   return std::move(function_call);
 }
 
@@ -733,7 +744,7 @@ std::vector<std::unique_ptr<ast_node>> args() {
     arg_list(std::move(argument_list));
   }
 
-  return argument_list;
+  return std::move(argument_list);
 }
 
 void arg_list(std::vector<std::unique_ptr<ast_node>> list) {

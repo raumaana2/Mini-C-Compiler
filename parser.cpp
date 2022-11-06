@@ -1,3 +1,5 @@
+#include "common.hpp"
+
 //===----------------------------------------------------------------------===//
 // Parser
 //===----------------------------------------------------------------------===//
@@ -5,8 +7,7 @@
 /// cur_tok/get_next_token - Provide a simple token buffer.  cur_tok is the current
 /// token the parser is looking at.  get_next_token reads another token from the
 /// lexer and updates cur_tok with its results.
-TOKEN cur_tok;
-std::deque<TOKEN> tok_buffer;
+
 
 TOKEN get_next_token() {
 

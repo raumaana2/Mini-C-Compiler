@@ -3,13 +3,15 @@
 
 #include "common.hpp"
 
+using namespace llvm;
+using namespace llvm::sys;
 
 //===----------------------------------------------------------------------===//
 // Code Generation
 //===----------------------------------------------------------------------===//
 
-extern LLVMContext TheContext;
-extern IRBuilder<> Builder(TheContext);
-extern std::unique_ptr<Module> TheModule;
+extern LLVMContext the_context;
+extern IRBuilder<> Builder(the_context);
+extern std::unique_ptr<Module> the_module;
 
 #endif

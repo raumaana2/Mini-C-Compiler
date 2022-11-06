@@ -36,11 +36,14 @@
 #include <system_error>
 #include <utility>
 #include <vector>
-#include "parser.hpp"
-#include "recursive_descent.hpp"
-#include "ast_nodes.hpp"
+#include "lexer.hpp"
 #include "mccomp.hpp"
+#include "ast_nodes.hpp"
 #include "ast_printer.hpp"
 #include "code_gen.hpp"
+#include "parser.hpp"
+#include "recursive_descent.hpp"
+
+
 
 #endif

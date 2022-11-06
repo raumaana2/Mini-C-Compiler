@@ -1,322 +1,252 @@
+#include "common.hpp"
+
+
 //===----------------------------------------------------------------------===//
 // Lexer
 //===----------------------------------------------------------------------===//
 
-// The lexer returns one of these for known things.
-enum TOKEN_TYPE {
 
-  IDENT = -1,        // [a-zA-Z_][a-zA-Z_0-9]*
-  ASSIGN = int('='), // '='
 
-  // delimiters
-  LBRA = int('{'),  // left brace
-  RBRA = int('}'),  // right brace
-  LPAR = int('('),  // left parenthesis
-  RPAR = int(')'),  // right parenthesis
-  SC = int(';'),    // semicolon
-  COMMA = int(','), // comma
 
-  // types
-  INT_TOK = -2,   // "int"
-  VOID_TOK = -3,  // "void"
-  FLOAT_TOK = -4, // "float"
-  BOOL_TOK = -5,  // "bool"
-
-  // keywords
-  EXTERN = -6,  // "extern"
-  IF = -7,      // "if"
-  ELSE = -8,    // "else"
-  WHILE = -9,   // "while"
-  RETURN = -10, // "return"
-  // TRUE   = -12,     // "true"
-  // FALSE   = -13,     // "false"
-
-  // literals
-  INT_LIT = -14,   // [0-9]+
-  FLOAT_LIT = -15, // [0-9]+.[0-9]+
-  BOOL_LIT = -16,  // "true" or "false" key words
-
-  // logical operators
-  AND = -17, // "&&"
-  OR = -18,  // "||"
-
-  // operators
-  PLUS = int('+'),    // addition or unary plus
-  MINUS = int('-'),   // substraction or unary negative
-  ASTERIX = int('*'), // multiplication
-  DIV = int('/'),     // division
-  MOD = int('%'),     // modular
-  NOT = int('!'),     // unary negation
-
-  // comparison operators
-  EQ = -19,      // equal
-  NE = -20,      // not equal
-  LE = -21,      // less than or equal to
-  LT = int('<'), // less than
-  GE = -23,      // greater than or equal to
-  GT = int('>'), // greater than
-
-  // special tokens
-  EOF_TOK = 0, // signal end of file
-
-  // invalid
-  INVALID = -100 // signal invalid token
-};
-
-// TOKEN struct is used to keep track of information about a token
-struct TOKEN {
-  int type = -100;
-  std::string lexeme;
-  int lineNo;
-  int columnNo;
-};
-
-static std::string IdentifierStr; // Filled in if IDENT
-static int IntVal;                // Filled in if INT_LIT
-static bool BoolVal;              // Filled in if BOOL_LIT
-static float FloatVal;            // Filled in if FLOAT_LIT
-static std::string StringVal;     // Filled in if String Literal
-static int lineNo, columnNo;
-
-static TOKEN returnTok(std::string lexVal, int tok_type) {
+TOKEN return_tok(std::string lex_val, int tok_type) {
   TOKEN return_tok;
-  return_tok.lexeme = lexVal;
+  return_tok.lexeme = lex_val;
   return_tok.type = tok_type;
-  return_tok.lineNo = lineNo;
-  return_tok.columnNo = columnNo - lexVal.length() - 1;
+  return_tok.line_no = line_no;
+  return_tok.column_no = column_no - lex_val.length() - 1;
   return return_tok;
 }
 
 // Read file line by line -- or look for \n and if found add 1 to line number
 // and reset column number to 0
 /// gettok - Return the next token from standard input.
-static TOKEN gettok() {
+ TOKEN gettok() {
 
-  static int LastChar = ' ';
-  static int NextChar = ' ';
+   int last_char = ' ';
+   int next_char = ' ';
 
   // Skip any whitespace.
-  while (isspace(LastChar)) {
-    if (LastChar == '\n' || LastChar == '\r') {
-      lineNo++;
-      columnNo = 1;
+  while (isspace(last_char)) {
+    if (last_char == '\n' || last_char == '\r') {
+      line_no++;
+      column_no = 1;
     }
-    LastChar = getc(pFile);
-    columnNo++;
+    last_char = getc(p_file);
+    column_no++;
   }
 
-  if (isalpha(LastChar) ||
-      (LastChar == '_')) { // identifier: [a-zA-Z_][a-zA-Z_0-9]*
-    IdentifierStr = LastChar;
-    columnNo++;
+  if (isalpha(last_char) ||
+      (last_char == '_')) { // identifier: [a-zA-Z_][a-zA-Z_0-9]*
+    identifier_str = last_char;
+    column_no++;
 
-    while (isalnum((LastChar = getc(pFile))) || (LastChar == '_')) {
-      IdentifierStr += LastChar;
-      columnNo++;
+    while (isalnum((last_char = getc(p_file))) || (last_char == '_')) {
+      identifier_str += last_char;
+      column_no++;
     }
 
-    if (IdentifierStr == "int")
-      return returnTok("int", INT_TOK);
-    if (IdentifierStr == "bool")
-      return returnTok("bool", BOOL_TOK);
-    if (IdentifierStr == "float")
-      return returnTok("float", FLOAT_TOK);
-    if (IdentifierStr == "void")
-      return returnTok("void", VOID_TOK);
-    if (IdentifierStr == "bool")
-      return returnTok("bool", BOOL_TOK);
-    if (IdentifierStr == "extern")
-      return returnTok("extern", EXTERN);
-    if (IdentifierStr == "if")
-      return returnTok("if", IF);
-    if (IdentifierStr == "else")
-      return returnTok("else", ELSE);
-    if (IdentifierStr == "while")
-      return returnTok("while", WHILE);
-    if (IdentifierStr == "return")
-      return returnTok("return", RETURN);
-    if (IdentifierStr == "true") {
-      BoolVal = true;
-      return returnTok("true", BOOL_LIT);
+    if (identifier_str == "int")
+      return return_tok("int", INT_TOK);
+    if (identifier_str == "bool")
+      return return_tok("bool", BOOL_TOK);
+    if (identifier_str == "float")
+      return return_tok("float", FLOAT_TOK);
+    if (identifier_str == "void")
+      return return_tok("void", VOID_TOK);
+    if (identifier_str == "bool")
+      return return_tok("bool", BOOL_TOK);
+    if (identifier_str == "extern")
+      return return_tok("extern", EXTERN);
+    if (identifier_str == "if")
+      return return_tok("if", IF);
+    if (identifier_str == "else")
+      return return_tok("else", ELSE);
+    if (identifier_str == "while")
+      return return_tok("while", WHILE);
+    if (identifier_str == "return")
+      return return_tok("return", RETURN);
+    if (identifier_str == "true") {
+      bool_val = true;
+      return return_tok("true", BOOL_LIT);
     }
-    if (IdentifierStr == "false") {
-      BoolVal = false;
-      return returnTok("false", BOOL_LIT);
+    if (identifier_str == "false") {
+      bool_val = false;
+      return return_tok("false", BOOL_LIT);
     }
 
-    return returnTok(IdentifierStr.c_str(), IDENT);
+    return return_tok(identifier_str.c_str(), IDENT);
   }
 
-  if (LastChar == '=') {
-    NextChar = getc(pFile);
-    if (NextChar == '=') { // EQ: ==
-      LastChar = getc(pFile);
-      columnNo += 2;
-      return returnTok("==", EQ);
+  if (last_char == '=') {
+    next_char = getc(p_file);
+    if (next_char == '=') { // EQ: ==
+      last_char = getc(p_file);
+      column_no += 2;
+      return return_tok("==", EQ);
     } else {
-      LastChar = NextChar;
-      columnNo++;
-      return returnTok("=", ASSIGN);
+      last_char = next_char;
+      column_no++;
+      return return_tok("=", ASSIGN);
     }
   }
 
-  if (LastChar == '{') {
-    LastChar = getc(pFile);
-    columnNo++;
-    return returnTok("{", LBRA);
+  if (last_char == '{') {
+    last_char = getc(p_file);
+    column_no++;
+    return return_tok("{", LBRA);
   }
-  if (LastChar == '}') {
-    LastChar = getc(pFile);
-    columnNo++;
-    return returnTok("}", RBRA);
+  if (last_char == '}') {
+    last_char = getc(p_file);
+    column_no++;
+    return return_tok("}", RBRA);
   }
-  if (LastChar == '(') {
-    LastChar = getc(pFile);
-    columnNo++;
-    return returnTok("(", LPAR);
+  if (last_char == '(') {
+    last_char = getc(p_file);
+    column_no++;
+    return return_tok("(", LPAR);
   }
-  if (LastChar == ')') {
-    LastChar = getc(pFile);
-    columnNo++;
-    return returnTok(")", RPAR);
+  if (last_char == ')') {
+    last_char = getc(p_file);
+    column_no++;
+    return return_tok(")", RPAR);
   }
-  if (LastChar == ';') {
-    LastChar = getc(pFile);
-    columnNo++;
-    return returnTok(";", SC);
+  if (last_char == ';') {
+    last_char = getc(p_file);
+    column_no++;
+    return return_tok(";", SC);
   }
-  if (LastChar == ',') {
-    LastChar = getc(pFile);
-    columnNo++;
-    return returnTok(",", COMMA);
+  if (last_char == ',') {
+    last_char = getc(p_file);
+    column_no++;
+    return return_tok(",", COMMA);
   }
 
-  if (isdigit(LastChar) || LastChar == '.') { // Number: [0-9]+.
-    std::string NumStr;
+  if (isdigit(last_char) || last_char == '.') { // Number: [0-9]+.
+    std::string num_str;
 
-    if (LastChar == '.') { // Floatingpoint Number: .[0-9]+
+    if (last_char == '.') { // Floatingpoint Number: .[0-9]+
       do {
-        NumStr += LastChar;
-        LastChar = getc(pFile);
-        columnNo++;
-      } while (isdigit(LastChar));
+        num_str += last_char;
+        last_char = getc(p_file);
+        column_no++;
+      } while (isdigit(last_char));
 
-      FloatVal = strtof(NumStr.c_str(), nullptr);
-      return returnTok(NumStr, FLOAT_LIT);
+      float_val = strtof(num_str.c_str(), nullptr);
+      return return_tok(num_str, FLOAT_LIT);
     } else {
       do { // Start of Number: [0-9]+
-        NumStr += LastChar;
-        LastChar = getc(pFile);
-        columnNo++;
-      } while (isdigit(LastChar));
+        num_str += last_char;
+        last_char = getc(p_file);
+        column_no++;
+      } while (isdigit(last_char));
 
-      if (LastChar == '.') { // Floatingpoint Number: [0-9]+.[0-9]+)
+      if (last_char == '.') { // Floatingpoint Number: [0-9]+.[0-9]+)
         do {
-          NumStr += LastChar;
-          LastChar = getc(pFile);
-          columnNo++;
-        } while (isdigit(LastChar));
+          num_str += last_char;
+          last_char = getc(p_file);
+          column_no++;
+        } while (isdigit(last_char));
 
-        FloatVal = strtof(NumStr.c_str(), nullptr);
-        return returnTok(NumStr, FLOAT_LIT);
+        float_val = strtof(num_str.c_str(), nullptr);
+        return return_tok(num_str, FLOAT_LIT);
       } else { // Integer : [0-9]+
-        IntVal = strtod(NumStr.c_str(), nullptr);
-        return returnTok(NumStr, INT_LIT);
+        int_val = strtod(num_str.c_str(), nullptr);
+        return return_tok(num_str, INT_LIT);
       }
     }
   }
 
-  if (LastChar == '&') {
-    NextChar = getc(pFile);
-    if (NextChar == '&') { // AND: &&
-      LastChar = getc(pFile);
-      columnNo += 2;
-      return returnTok("&&", AND);
+  if (last_char == '&') {
+    next_char = getc(p_file);
+    if (next_char == '&') { // AND: &&
+      last_char = getc(p_file);
+      column_no += 2;
+      return return_tok("&&", AND);
     } else {
-      LastChar = NextChar;
-      columnNo++;
-      return returnTok("&", int('&'));
+      last_char = next_char;
+      column_no++;
+      return return_tok("&", int('&'));
     }
   }
 
-  if (LastChar == '|') {
-    NextChar = getc(pFile);
-    if (NextChar == '|') { // OR: ||
-      LastChar = getc(pFile);
-      columnNo += 2;
-      return returnTok("||", OR);
+  if (last_char == '|') {
+    next_char = getc(p_file);
+    if (next_char == '|') { // OR: ||
+      last_char = getc(p_file);
+      column_no += 2;
+      return return_tok("||", OR);
     } else {
-      LastChar = NextChar;
-      columnNo++;
-      return returnTok("|", int('|'));
+      last_char = next_char;
+      column_no++;
+      return return_tok("|", int('|'));
     }
   }
 
-  if (LastChar == '!') {
-    NextChar = getc(pFile);
-    if (NextChar == '=') { // NE: !=
-      LastChar = getc(pFile);
-      columnNo += 2;
-      return returnTok("!=", NE);
+  if (last_char == '!') {
+    next_char = getc(p_file);
+    if (next_char == '=') { // NE: !=
+      last_char = getc(p_file);
+      column_no += 2;
+      return return_tok("!=", NE);
     } else {
-      LastChar = NextChar;
-      columnNo++;
-      return returnTok("!", NOT);
+      last_char = next_char;
+      column_no++;
+      return return_tok("!", NOT);
       ;
     }
   }
 
-  if (LastChar == '<') {
-    NextChar = getc(pFile);
-    if (NextChar == '=') { // LE: <=
-      LastChar = getc(pFile);
-      columnNo += 2;
-      return returnTok("<=", LE);
+  if (last_char == '<') {
+    next_char = getc(p_file);
+    if (next_char == '=') { // LE: <=
+      last_char = getc(p_file);
+      column_no += 2;
+      return return_tok("<=", LE);
     } else {
-      LastChar = NextChar;
-      columnNo++;
-      return returnTok("<", LT);
+      last_char = next_char;
+      column_no++;
+      return return_tok("<", LT);
     }
   }
 
-  if (LastChar == '>') {
-    NextChar = getc(pFile);
-    if (NextChar == '=') { // GE: >=
-      LastChar = getc(pFile);
-      columnNo += 2;
-      return returnTok(">=", GE);
+  if (last_char == '>') {
+    next_char = getc(p_file);
+    if (next_char == '=') { // GE: >=
+      last_char = getc(p_file);
+      column_no += 2;
+      return return_tok(">=", GE);
     } else {
-      LastChar = NextChar;
-      columnNo++;
-      return returnTok(">", GT);
+      last_char = next_char;
+      column_no++;
+      return return_tok(">", GT);
     }
   }
 
-  if (LastChar == '/') { // could be division or could be the start of a comment
-    LastChar = getc(pFile);
-    columnNo++;
-    if (LastChar == '/') { // definitely a comment
+  if (last_char == '/') { // could be division or could be the start of a comment
+    last_char = getc(p_file);
+    column_no++;
+    if (last_char == '/') { // definitely a comment
       do {
-        LastChar = getc(pFile);
-        columnNo++;
-      } while (LastChar != EOF && LastChar != '\n' && LastChar != '\r');
+        last_char = getc(p_file);
+        column_no++;
+      } while (last_char != EOF && last_char != '\n' && last_char != '\r');
 
-      if (LastChar != EOF)
+      if (last_char != EOF)
         return gettok();
     } else
-      return returnTok("/", DIV);
+      return return_tok("/", DIV);
   }
 
   // Check for end of file.  Don't eat the EOF.
-  if (LastChar == EOF) {
-    columnNo++;
-    return returnTok("0", EOF_TOK);
+  if (last_char == EOF) {
+    column_no++;
+    return return_tok("0", EOF_TOK);
   }
 
   // Otherwise, just return the character as its ascii value.
-  int ThisChar = LastChar;
-  std::string s(1, ThisChar);
-  LastChar = getc(pFile);
-  columnNo++;
-  return returnTok(s, int(ThisChar));
+  int this_char = last_char;
+  std::string s(1, this_char);
+  last_char = getc(p_file);
+  column_no++;
+  return return_tok(s, int(this_char));
 }

@@ -3,7 +3,6 @@
 
 #include "common.hpp"
 
-extern FILE *pFile;
 
 
 #endif

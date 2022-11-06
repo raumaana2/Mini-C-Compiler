@@ -1,8 +1,7 @@
 
 #include "common.hpp"
 
-using namespace llvm;
-using namespace llvm::sys;
+
 
 //===----------------------------------------------------------------------===//
 // Main driver code.
@@ -10,8 +9,8 @@ using namespace llvm::sys;
 
 int main(int argc, char **argv) {
   if (argc == 2) {
-    pFile = fopen(argv[1], "r");
-    if (pFile == NULL)
+    p_file = fopen(argv[1], "r");
+    if (p_file == NULL)
       perror("Error opening file");
   } else {
     std::cout << "Usage: ./code InputFile\n";
@@ -19,8 +18,8 @@ int main(int argc, char **argv) {
   }
 
   // initialize line number and column numbers to zero
-  lineNo = 1;
-  columnNo = 1;
+  line_no = 1;
+  column_no = 1;
 
   // get the first token
   get_next_token();
@@ -32,7 +31,7 @@ int main(int argc, char **argv) {
   fprintf(stderr, "Lexer Finished\n");
 
   // Make the module, which holds all the code.
-  TheModule = std::make_unique<Module>("mini-c", TheContext);
+  the_module = std::make_unique<Module>("mini-c", the_context);
 
   // Run the parser now.
   parser();
@@ -40,18 +39,18 @@ int main(int argc, char **argv) {
 
   //********************* Start printing final IR **************************
   // Print out all of the generated code into a file called output.ll
-  auto Filename = "output.ll";
+  auto file_name = "output.ll";
   std::error_code EC;
-  raw_fd_ostream dest(Filename, EC, sys::fs::OF_None);
+  raw_fd_ostream dest(file_name, EC, sys::fs::OF_None);
 
   if (EC) {
     errs() << "Could not open file: " << EC.message();
     return 1;
   }
-  // TheModule->print(errs(), nullptr); // print IR to terminal
-  TheModule->print(dest, nullptr);
+  // the_module->print(errs(), nullptr); // print IR to terminal
+  the_module->print(dest, nullptr);
   //********************* End printing final IR ****************************
 
-  fclose(pFile); // close the file that contains the code that was parsed
+  fclose(p_file); // close the file that contains the code that was parsed
   return 0;
 }
