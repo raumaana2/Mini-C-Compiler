@@ -287,7 +287,7 @@ static void putBackToken(TOKEN tok) { tok_buffer.push_front(tok); }
 
 void match(int word) {
   if (CurTok.type == word) {
-    std::cout << "matched " << CurTok.type << std::endl;
+    // std::cout << "matched " << CurTok.type << std::endl;
     getNextToken();
   } else {
     std::cerr << "Expected token " << word << " but got " << CurTok.type << std::endl;
@@ -330,7 +330,7 @@ std::unique_ptr<ast_node> program() {
     decl_list(std::move(decl_vector));
   } else {
   
-    std::cout << "Expected extern or bool or float or int or void " << std::endl;
+    std::cerr << "Expected extern or bool or float or int or void " << std::endl;
 
     exit(0);
   }
@@ -714,6 +714,8 @@ std::unique_ptr<ast_node> else_stmt() {
     case (LBRA):
     case (RBRA):
     case (BOOL_LIT):
+
+    
     case (FLOAT_LIT):
     case (IDENT):
     case (INT_LIT):
@@ -1046,17 +1048,22 @@ std::unique_ptr<ast_node> unary() {
 }
 
 std::unique_ptr<ast_node> identifiers() {
-  std::cout << CurTok.type << std::endl;
   switch (CurTok.type) {
     case (IDENT):
       return identifiers_B(); 
     case (INT_LIT):
     case (FLOAT_LIT):
-    case (BOOL_LIT):
+    case (BOOL_LIT): {
+
       TOKEN tok = CurTok;
       getNextToken();
       auto result = std::make_unique<literal_ast_node>(tok);
-      return std::move(result);           
+      return std::move(result);    
+    } case (LPAR): 
+      match(LPAR);
+      auto expression = expr();
+      match(RPAR);      
+      return std::move(expression);
   }
 
   std::cerr << "expected identifier" << std::endl;
@@ -1064,7 +1071,6 @@ std::unique_ptr<ast_node> identifiers() {
 }
 
 std::unique_ptr<ast_node> identifiers_B() {
-  std::cout << "in identifiers_B" << std::endl;
   TOKEN identifier = CurTok;
   getNextToken();
   switch (CurTok.type) {

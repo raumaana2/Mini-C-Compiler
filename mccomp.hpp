@@ -37,7 +37,6 @@
 #include <system_error>
 #include <utility>
 #include <vector>
-#include "boost/format.hpp"
 
 // The lexer returns one of these for known things.
 enum TOKEN_TYPE {
@@ -211,9 +210,9 @@ public:
 
     virtual std::string to_string() const override {
     // return a sting representation of this AST node
-      boost::format nodes = boost::format("Op:%1\n\t%2\n\t%3") % Op.lexeme % LHS.to_string() % RHS.to_string();
 
-      return nodes.str();
+      return std::format("Op: {}\n\t{}\n\t{}", Op.lexeme, LHS->to_string(), RHS->to_string());
+      // return nodes.str();
     };
 
 };
@@ -227,9 +226,8 @@ public:
   unary_expr_ast(TOKEN op, std::unique_ptr<ast_node> expr) : Op(op), Expr(std::move(expr)) {}
   virtual std::string to_string() const override {
     // return a sting representation of this AST node
-    boost::format nodes = boost::format("Op:%1%\n\t%2%") % Op.lexeme % Expr.to_string();
-
-    return nodes.str();
+    // boost::format nodes = boost::format("Op:%1%\n\t%2%") % Op.lexeme % Expr->to_string();
+    return std::format("Op:{}\n\t{}", Op.lexeme, Expr->to_string());
   };
 };
 
@@ -243,7 +241,14 @@ public:
     Callee(callee), Args(std::move(args)) {}
   virtual std::string to_string() const override {
     // return a sting representation of this AST node
-    boost::format nodes = boost::format("function call: %1%() ");
+    // boost::format nodes = boost::format("function call: %1%() ");
+
+    std::string arguments = "";
+    for (int i = 0; i < Args.size(); i++) {
+      (i < Args.size() - 1) ? arguments += Args[i]->to_string() + ", "; ? arguments += Args[i]->to_string();
+    }
+    
+    return std::format("funtion call: {}({})", Callee.lexeme, arguments);
   };
 };
 
@@ -260,6 +265,13 @@ public:
   virtual std::string to_string() const override {
     // return a sting representation of this AST node
 
+    std::string arguments = "";
+    for (int i = 0; i < Args.size(); i++) {
+      (i < Args.size() - 1) ? arguments += Args[i]->to_string() + ", "; ? arguments += Args[i]->to_string();
+    }
+
+    return std::format("prototype: {} {}({})", Type.lexeme, Name.lexeme, arguments);
+
   };
 };
 
@@ -274,7 +286,7 @@ public:
     std::unique_ptr<ast_node> body) : Proto(std::move(proto)), Body(std::move(body)) {}
   virtual std::string to_string() const override {
     // return a sting representation of this AST node
-
+    return std::format("{}\n\t{}", Proto->to_string(), Body->to_string());
   };
 
 };
@@ -292,7 +304,7 @@ public:
   
   virtual std::string to_string() const override {
     // return a sting representation of this AST node
-
+    return std::format("if ({}) then \n\t {} \n else \n\t {}", Condition->to_string(), If_body->to_string(), Else_body->to_string());
   };
 };
 
@@ -307,7 +319,7 @@ public:
   
   virtual std::string to_string() const override {
     // return a sting representation of this AST node
-
+    return std::format("while ({}) \n\t {}", Condition->to_string(), Body->to_string());
   };
 };
 
@@ -319,7 +331,7 @@ public:
   return_ast(std::unique_ptr<ast_node> body) : Body(std::move(body)) {}
   virtual std::string to_string() const override {
     // return a sting representation of this AST node
-
+    return std::format("return {}", Body->to_string());
   };
 };
 
@@ -332,7 +344,7 @@ public:
   var_decl_ast(TOKEN type, TOKEN name) : Type(type), Name(name)  {}
   virtual std::string to_string() const override {
     // return a sting representation of this AST node
-
+    return std::format("declared {} {}", Type.lexeme, Name.lexeme);
   };
 };
 
@@ -347,7 +359,7 @@ public:
   }
   virtual std::string to_string() const override {
     // return a sting representation of this AST node
-
+    return std::format("variable {} assigned {}", Name.lexeme, Expr->to_string());
   };
 };
 
