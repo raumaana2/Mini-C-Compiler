@@ -37,8 +37,6 @@
 #include <system_error>
 #include <utility>
 #include <vector>
-// #include <boost/format.hpp>
-// #include <boost/throw_exception.hpp>
 
 // The lexer returns one of these for known things.
 enum TOKEN_TYPE {
@@ -111,6 +109,7 @@ struct TOKEN {
 
 
 
+
 //===----------------------------------------------------------------------===//
 // AST nodes
 //===----------------------------------------------------------------------===//
@@ -120,13 +119,8 @@ class ast_node {
 public:
   virtual ~ast_node() {}
   // virtual Value *codegen() = 0;
-  virtual std::string to_string() const {
-    return "";
-  };
+  virtual std::string to_string() const {};
 };
-
-
-
 
 /// int_ast_node - Class for integer literals like 1, 2, 10,
 class literal_ast_node : public ast_node {
@@ -187,8 +181,6 @@ public:
 // };
 
 
-
-
 /// void_ast_node - Class for boolean literals like true, false
 class void_ast_node : public ast_node {
   TOKEN Tok;
@@ -218,15 +210,12 @@ public:
 
     virtual std::string to_string() const override {
     // return a sting representation of this AST node
-      std::string left = (LHS) ? LHS->to_string() : "null";
-      std::string right = (RHS) ? RHS->to_string() : "null";
-      return "Op: " + Op.lexeme + "\n" + left + "\n" + right; 
+
+      return std::format("Op: {}\n\t{}\n\t{}", Op.lexeme, LHS->to_string(), RHS->to_string());
+      // return nodes.str();
     };
 
 };
-
-
-
 
 // class for unary expressions
 class unary_expr_ast : public ast_node {
@@ -237,9 +226,8 @@ public:
   unary_expr_ast(TOKEN op, std::unique_ptr<ast_node> expr) : Op(op), Expr(std::move(expr)) {}
   virtual std::string to_string() const override {
     // return a sting representation of this AST node
-    
-    std::string expression = (Expr) ? Expr->to_string() : "null";
-    return "Op: " + Op.lexeme + "\n" + expression;
+    // boost::format nodes = boost::format("Op:%1%\n\t%2%") % Op.lexeme % Expr->to_string();
+    return std::format("Op:{}\n\t{}", Op.lexeme, Expr->to_string());
   };
 };
 
@@ -257,10 +245,10 @@ public:
 
     std::string arguments = "";
     for (int i = 0; i < Args.size(); i++) {
-      std::string element = (Args[i]) ? Args[i]->to_string() : "null";
-      (i < Args.size() - 1) ? arguments += element + ", ": arguments += element;
+      (i < Args.size() - 1) ? arguments += Args[i]->to_string() + ", "; ? arguments += Args[i]->to_string();
     }
-    return "function call: " + Callee.lexeme + "(" + arguments + ")";
+    
+    return std::format("funtion call: {}({})", Callee.lexeme, arguments);
   };
 };
 
@@ -279,10 +267,11 @@ public:
 
     std::string arguments = "";
     for (int i = 0; i < Args.size(); i++) {
-      std::string element = (Args[i]) ? Args[i]->to_string() : "null";
-      (i < Args.size() - 1) ? arguments += element + ", ": arguments += element;
+      (i < Args.size() - 1) ? arguments += Args[i]->to_string() + ", "; ? arguments += Args[i]->to_string();
     }
-    return "prototype: " + Type.lexeme + " " + Name.lexeme + "(" + arguments + ")";
+
+    return std::format("prototype: {} {}({})", Type.lexeme, Name.lexeme, arguments);
+
   };
 };
 
@@ -297,9 +286,7 @@ public:
     std::unique_ptr<ast_node> body) : Proto(std::move(proto)), Body(std::move(body)) {}
   virtual std::string to_string() const override {
     // return a sting representation of this AST node
-    std::string prototype = (Proto) ? Proto->to_string() : "null";
-    std::string functionbody = (Body) ? Body->to_string() : "null";
-    return "function declaration: " + prototype + "\n" + functionbody; 
+    return std::format("{}\n\t{}", Proto->to_string(), Body->to_string());
   };
 
 };
@@ -317,10 +304,7 @@ public:
   
   virtual std::string to_string() const override {
     // return a sting representation of this AST node
-    std::string con = (Condition) ? Condition->to_string() : "null";
-    std::string ifbody = (If_body) ? If_body->to_string() : "null";
-    std::string elsebody = (Else_body) ? Else_body->to_string() : "null";
-    return "if (" + con + ") then \n " + ifbody + "\n else \n" + elsebody; 
+    return std::format("if ({}) then \n\t {} \n else \n\t {}", Condition->to_string(), If_body->to_string(), Else_body->to_string());
   };
 };
 
@@ -335,10 +319,7 @@ public:
   
   virtual std::string to_string() const override {
     // return a sting representation of this AST node
-    std::string con = (Condition) ? Condition->to_string() : "null";
-    std::string whilebody = (Body) ? Body->to_string() : "null";
-    return "while (" + con + ") \n" + whilebody; 
-    
+    return std::format("while ({}) \n\t {}", Condition->to_string(), Body->to_string());
   };
 };
 
@@ -350,8 +331,7 @@ public:
   return_ast(std::unique_ptr<ast_node> body) : Body(std::move(body)) {}
   virtual std::string to_string() const override {
     // return a sting representation of this AST node
-    std::string returnbody = (Body) ? Body->to_string() : "null";
-    return "return " + returnbody;
+    return std::format("return {}", Body->to_string());
   };
 };
 
@@ -364,7 +344,7 @@ public:
   var_decl_ast(TOKEN type, TOKEN name) : Type(type), Name(name)  {}
   virtual std::string to_string() const override {
     // return a sting representation of this AST node
-    return "declared " + Type.lexeme + " " + Name.lexeme;
+    return std::format("declared {} {}", Type.lexeme, Name.lexeme);
   };
 };
 
@@ -379,8 +359,7 @@ public:
   }
   virtual std::string to_string() const override {
     // return a sting representation of this AST node
-    std::string expression = (Expr) ? Expr->to_string() : "null";
-    return "variable " + Name.lexeme + " assigned " + expression;
+    return std::format("variable {} assigned {}", Name.lexeme, Expr->to_string());
   };
 };
 
@@ -394,17 +373,7 @@ public:
     List_a(std::move(list_a)), List_b(std::move(list_b)) {}
   virtual std::string to_string() const override {
     // return a sting representation of this AST node
-    std::string list_elements = "";
-    for (int i = 0; i < List_a.size(); i++) {
-      std::string element = (List_a[i]) ? List_a[i]->to_string() : "null";
-      (i < List_a.size() - 1) ? list_elements += element + "\n": list_elements += element;
-    }
-    list_elements += "\n";
-    for (int i = 0; i < List_b.size(); i++) {
-      std::string element = (List_b[i]) ? List_b[i]->to_string() : "null";
-      (i < List_b.size() - 1) ? list_elements += element + "\n": list_elements += element;
-    }
-    return list_elements;
+
   };
 };
 
@@ -415,35 +384,34 @@ public:
   identifier_ast(TOKEN identifier) : Identifier(identifier) {}
   virtual std::string to_string() const override {
     // return a sting representation of this AST node
-    return "indentifier: " + Identifier.lexeme;
+
   };
 };
 
 
 
-
-std::unique_ptr<ast_node> parser();
+void parser();
 std::unique_ptr<ast_node> program();
-void extern_list(std::vector<std::unique_ptr<ast_node>>& list);
-void extern_list_prime(std::vector<std::unique_ptr<ast_node>>& list);
+void extern_list(std::vector<std::unique_ptr<ast_node>> list);
+void extern_list_prime(std::vector<std::unique_ptr<ast_node>> list);
 std::unique_ptr<ast_node> extern_();
-void decl_list(std::vector<std::unique_ptr<ast_node>>& list);
-void decl_list_prime(std::vector<std::unique_ptr<ast_node>>& list);
+void decl_list(std::vector<std::unique_ptr<ast_node>> list);
+void decl_list_prime(std::vector<std::unique_ptr<ast_node>> list);
 std::unique_ptr<ast_node> decl();
 std::unique_ptr<var_decl_ast> var_decl();
 std::unique_ptr<function_ast> fun_decl();
 TOKEN var_type();
 TOKEN type_spec();
 std::vector<std::unique_ptr<ast_node>> params();
-void param_list(std::vector<std::unique_ptr<ast_node>>& list);
-void param_list_prime(std::vector<std::unique_ptr<ast_node>>& list);
+void param_list(std::vector<std::unique_ptr<ast_node>> list);
+void param_list_prime(std::vector<std::unique_ptr<ast_node>> list);
 std::unique_ptr<ast_node> param();
 std::unique_ptr<ast_node> block();
-void local_decls(std::vector<std::unique_ptr<ast_node>>& list);
-void local_decls_prime(std::vector<std::unique_ptr<ast_node>>& list);
+void local_decls(std::vector<std::unique_ptr<ast_node>> list);
+void local_decls_prime(std::vector<std::unique_ptr<ast_node>> list);
 std::unique_ptr<ast_node> local_decl();
-void stmt_list(std::vector<std::unique_ptr<ast_node>>& list);
-void stmt_list_prime(std::vector<std::unique_ptr<ast_node>>& list);
+void stmt_list(std::vector<std::unique_ptr<ast_node>> list);
+void stmt_list_prime(std::vector<std::unique_ptr<ast_node>> list);
 std::unique_ptr<ast_node> stmt();
 std::unique_ptr<ast_node> expr_stmt();
 std::unique_ptr<ast_node> while_stmt();
@@ -468,8 +436,8 @@ std::unique_ptr<ast_node> unary();
 std::unique_ptr<ast_node> identifiers();
 std::unique_ptr<ast_node> identifiers_B();
 std::vector<std::unique_ptr<ast_node>> args();
-void arg_list(std::vector<std::unique_ptr<ast_node>>& list);
-void arg_list_prime(std::vector<std::unique_ptr<ast_node>>& list);
+void arg_list(std::vector<std::unique_ptr<ast_node>> list);
+void arg_list_prime(std::vector<std::unique_ptr<ast_node>> list);
 
 
 
