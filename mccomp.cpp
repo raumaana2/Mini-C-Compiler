@@ -1,5 +1,6 @@
 #include "mccomp.hpp"
 #include <typeinfo>
+#include <stack>
 using namespace llvm;
 using namespace llvm::sys;
 
@@ -813,6 +814,12 @@ std::unique_ptr<ast_node> expr() {
 
 std::unique_ptr<ast_node> or_val() {
   auto lhs = and_val();
+  while (CurTok.type == OR) {
+    TOKEN op = CurTok;
+    getNextToken();
+    auto rhs = and_val();
+    lhs = std::make_unique<binary_expr_ast>(op ,std::move(lhs), std::move(rhs));
+  }
   return or_val_prime(std::move(lhs)); 
 }
 
@@ -846,6 +853,12 @@ std::unique_ptr<ast_node> or_val_prime(std::unique_ptr<ast_node> lhs) {
 std::unique_ptr<ast_node> and_val() {
   
   auto lhs = eq_val();
+  while (CurTok.type == AND) {
+    TOKEN op = CurTok;
+    getNextToken();
+    auto rhs = eq_val();
+    lhs = std::make_unique<binary_expr_ast>(op ,std::move(lhs), std::move(rhs));
+  }
   return and_val_prime(std::move(lhs));
 }
 
@@ -877,6 +890,14 @@ std::unique_ptr<ast_node> and_val_prime(std::unique_ptr<ast_node> lhs) {
 
 std::unique_ptr<ast_node> eq_val() {
   auto lhs = comp_val();
+
+  while (CurTok.type == EQ || CurTok.type == NE) {
+    TOKEN op = CurTok;
+    getNextToken();
+    auto rhs = comp_val();
+    lhs = std::make_unique<binary_expr_ast>(op ,std::move(lhs), std::move(rhs));
+  }
+
   return eq_val_prime(std::move(lhs)); 
 }
 
@@ -912,6 +933,12 @@ std::unique_ptr<ast_node> eq_val_prime(std::unique_ptr<ast_node> lhs) {
 
 std::unique_ptr<ast_node> comp_val() { 
   auto lhs = add_val();
+  while (CurTok.type == LE || CurTok.type == LT || CurTok.type == GE || CurTok.type == GT) {
+    TOKEN op = CurTok;
+    getNextToken();
+    auto rhs = add_val();
+    lhs = std::make_unique<binary_expr_ast>(op ,std::move(lhs), std::move(rhs));
+  }
   return comp_val_prime(std::move(lhs));
 }
 
@@ -920,7 +947,7 @@ std::unique_ptr<ast_node> comp_val_prime(std::unique_ptr<ast_node> lhs) {
   switch (CurTok.type) {
   case(NE):
   case(AND):
-  case(RPAR):
+  case(RPAR):      
   case(SC):
   case(EQ):
   case(OR):
@@ -951,11 +978,21 @@ std::unique_ptr<ast_node> comp_val_prime(std::unique_ptr<ast_node> lhs) {
 
 std::unique_ptr<ast_node> add_val() {
   auto lhs = mul_val();
-  
+
+  while (CurTok.type == PLUS || CurTok.type == MINUS) {
+    TOKEN op = CurTok;
+    getNextToken();
+    auto rhs = mul_val();
+    lhs = std::make_unique<binary_expr_ast>(op ,std::move(lhs), std::move(rhs));
+    
+  }
   return add_val_prime(std::move(lhs));
+
+  
 }
 
-std::unique_ptr<ast_node> add_val_prime(std::unique_ptr<ast_node> lhs) {
+std::unique_ptr<ast_node> 
+add_val_prime(std::unique_ptr<ast_node> lhs) {
   TOKEN op;
   switch (CurTok.type) {
     case(NE):
@@ -974,11 +1011,12 @@ std::unique_ptr<ast_node> add_val_prime(std::unique_ptr<ast_node> lhs) {
     case (MINUS):
       op = CurTok;
       getNextToken();
-
       auto rhs = mul_val();
+      std::cout << ((rhs) ? rhs->to_string(0) : "null") << std::endl;
       rhs = add_val_prime(std::move(rhs));
+      std::cout << ((rhs) ? rhs->to_string(0) : "null") << std::endl;
 
-
+      std::cout << ((lhs) ? lhs->to_string(0) : "null") << std::endl;
 
       auto bin_op = std::make_unique<binary_expr_ast>(
         op,
@@ -993,6 +1031,12 @@ std::unique_ptr<ast_node> add_val_prime(std::unique_ptr<ast_node> lhs) {
 
 std::unique_ptr<ast_node> mul_val() {
   auto lhs = unary();
+  while (CurTok.type == ASTERIX || CurTok.type == DIV || CurTok.type == MOD) {
+    TOKEN op = CurTok;
+    getNextToken();
+    auto rhs = unary();
+    lhs = std::make_unique<binary_expr_ast>(op ,std::move(lhs), std::move(rhs));
+  }
   return mul_val_prime(std::move(lhs));
 }
 
