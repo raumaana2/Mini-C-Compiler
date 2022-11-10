@@ -37,8 +37,13 @@
 #include <system_error>
 #include <utility>
 #include <vector>
-// #include <boost/format.hpp>
-// #include <boost/throw_exception.hpp>
+
+using namespace llvm;
+using namespace llvm::sys;
+
+extern LLVMContext TheContext;
+extern IRBuilder<> Builder(TheContext);
+extern std::unique_ptr<Module> TheModule;
 
 // The lexer returns one of these for known things.
 enum TOKEN_TYPE {
@@ -119,7 +124,7 @@ struct TOKEN {
 class ast_node {
 public:
   virtual ~ast_node() {}
-  // virtual Value *codegen() = 0;
+  virtual Value *codegen() = 0;
   virtual std::string to_string(int depth) const {
     return "";
   };
@@ -128,14 +133,29 @@ public:
 
 
 
-/// int_ast_node - Class for integer literals like 1, 2, 10,
+/// literal_ast_node - class to store integer, float or boolean literals or indentifiers
 class literal_ast_node : public ast_node {
   TOKEN Tok;
   
 
 public:
   literal_ast_node(TOKEN tok) : Tok(tok) {}
-  // virtual Value *codegen() override;
+  virtual Value *codegen() override {
+    switch (Tok.type) {
+      case (INT_TOK):
+        return ConstantInt::get(TheContext, APInt(std::stoi(Tok.lexeme), false));
+      case (FLOAT_TOK):
+        return ConstantFP::get(TheContext, APFloat(std::stof(Tok.lexeme)));
+      case (BOOL_TOK):
+        return ConstantInt::get(TheContext, APInt(std::stoi(Tok.lexeme), false));
+      case (IDENT):
+        return;
+        //for later
+
+    }
+
+
+  };
   virtual std::string to_string(int depth) const override {
   // return a sting representation of this AST node
     std::string whitespace(depth, ' ');
@@ -144,16 +164,13 @@ public:
 };
 
 
-/// void_ast_node - Class for boolean literals like true, false
+/// void_ast_node - Class for to store void token, mainly used in function definitions and declarations
 class void_ast_node : public ast_node {
   TOKEN Tok;
 
 public:
   void_ast_node(TOKEN tok) : Tok(tok) {}
-  // virtual Value *codegen() override;
-  // virtual std::string to_string(int depth) const override {
-  // return a sting representation of this AST node
-  //};
+  virtual Value *codegen() override;
   virtual std::string to_string(int depth) const override {
   // return a sting representation of this AST node
     std::string whitespace(depth, ' ');
@@ -171,6 +188,31 @@ public:
     binary_expr_ast(TOKEN op, std::unique_ptr<ast_node> LHS, 
         std::unique_ptr<ast_node> RHS) : Op(op), LHS(std::move(LHS)),
     RHS(std::move(RHS)) {}
+    virtual Value *codegen() override {
+      
+
+      switch (Op.type) {
+        case (PLUS):
+          return Builder.CreateAdd(LHS->codegen(), RHS->codegen());
+        case (MINUS):
+          return Builder.CreateSub(LHS->codegen(), RHS->codegen());
+        case (ASTERIX):
+          return Builder.CreateMul(LHS->codegen(), RHS->codegen());
+        case (DIV):
+          return Builder.CreateSDiv(LHS->codegen(), RHS->codegen());
+        case (MOD):
+          // return Builder.createMod(LHS->codegen(), RHS->codegen());
+
+
+        case(EQ):
+          
+        case(NE):
+        case(LE):
+        case(LT):
+        case(GE):
+        case(GT):
+      }
+    };
 
     virtual std::string to_string(int depth) const override {
     // return a sting representation of this AST node
@@ -185,7 +227,6 @@ public:
 
 
 
-
 // class for unary expressions
 class unary_expr_ast : public ast_node {
   TOKEN Op;
@@ -193,6 +234,15 @@ class unary_expr_ast : public ast_node {
 
 public:
   unary_expr_ast(TOKEN op, std::unique_ptr<ast_node> expr) : Op(op), Expr(std::move(expr)) {}
+  virtual Value *codegen() override {
+    switch (Op.type) {
+      case (NOT):
+        return Builder.CreateNot(Expr->codegen());
+      case (MINUS):
+        return Builder.CreateNeg(Expr->codegen());
+
+    }
+  };
   virtual std::string to_string(int depth) const override {
     // return a sting representation of this AST node
     std::string whitespace(depth, ' ');
@@ -210,9 +260,23 @@ class call_expr_ast : public ast_node {
 public:
   call_expr_ast(TOKEN callee,std::vector<std::unique_ptr<ast_node>> args) :
     Callee(callee), Args(std::move(args)) {}
-  virtual std::string to_string(int depth) const override {
-    // return a sting representation of this AST node
 
+  virtual Value *codegen() override {
+    Function *func_callee = TheModule -> getFunction(Callee.lexeme);
+
+    // various error handling will go here
+
+    std::vector<Value *> args_v;
+
+
+    for(auto v: Args) {
+      args_v.push_back(v->codegen());
+    }
+
+    return Builder.CreateCall(func_callee, args_v);
+  };
+
+  virtual std::string to_string(int depth) const override {
     std::string arguments = "";
     for (int i = 0; i < Args.size(); i++) {
       std::string element = (Args[i]) ? Args[i]->to_string(depth+1) : "null";
@@ -224,7 +288,7 @@ public:
 };
 
 
-//class for function signature
+//class for function signature (used for for both the function definition and externs)
 class prototype_ast : public ast_node {
     TOKEN Type;
     TOKEN Name;
@@ -233,9 +297,12 @@ class prototype_ast : public ast_node {
 public:
   prototype_ast(TOKEN type, TOKEN name, std::vector<std::unique_ptr<ast_node>> args) 
     : Type(type), Name(name), Args(std::move(args)) {}
+
+  virtual Value *codegen() override {
+    
+  };
+
   virtual std::string to_string(int depth) const override {
-    // return a sting representation of this AST node
-    // depth += 1;
     std::string arguments = "";
     for (int i = 0; i < Args.size(); i++) {
       std::string element = (Args[i]) ? Args[i]->to_string(0) : "null";
@@ -376,17 +443,6 @@ public:
   };
 };
 
-// class identifier_ast : public ast_node {
-//   TOKEN Identifier;
-
-// public: 
-//   identifier_ast(TOKEN identifier) : Identifier(identifier) {}
-//   virtual std::string to_string(int depth) const override {
-//     // return a sting representation of this AST node
-
-//     return "indentifier: " + Identifier.lexeme;
-//   };
-// };
 
 
 

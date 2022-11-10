@@ -1,6 +1,5 @@
 #include "mccomp.hpp"
 #include <typeinfo>
-#include <stack>
 using namespace llvm;
 using namespace llvm::sys;
 
@@ -303,11 +302,8 @@ void match(int word) {
 
 
 std::unique_ptr<ast_node> parser() {
-  // add body
-  
   auto program_scope = program();
 
-  
   switch (CurTok.type) {
     case (EOF_TOK):
       return std::move(program_scope);
@@ -319,7 +315,7 @@ std::unique_ptr<ast_node> parser() {
 }
 
 
-// program ::= extern_list decl_list
+// program -> extern_list decl_list | decl_list
 std::unique_ptr<ast_node> program() {
   std::vector<std::unique_ptr<ast_node>> extern_vector;
   std::vector<std::unique_ptr<ast_node>> decl_vector;
@@ -346,13 +342,15 @@ std::unique_ptr<ast_node> program() {
 
 }
 
-
+// extern_list -> extern extern_list_prime
 void extern_list(std::vector<std::unique_ptr<ast_node>>& list) {
   auto _extern_ = extern_();
   list.push_back(std::move(_extern_));
   extern_list_prime(list);
 }
 
+
+//extern_list_prime -> extern extern_list_prime | epsilon 
 void extern_list_prime(std::vector<std::unique_ptr<ast_node>>& list) {
 
   switch (CurTok.type) {
@@ -372,6 +370,7 @@ void extern_list_prime(std::vector<std::unique_ptr<ast_node>>& list) {
   exit(0);
 }
 
+// extern -> "extern" type_spec IDENT "(" params ")" ";"
 std::unique_ptr<ast_node> extern_() {
   match(EXTERN);
   auto type = type_spec();
@@ -392,7 +391,7 @@ std::unique_ptr<ast_node> extern_() {
 }
 
 
-
+// decl_list -> decl decl_list_prime
 void decl_list(std::vector<std::unique_ptr<ast_node>>& list) {
 
   auto declaration = decl();
@@ -400,6 +399,8 @@ void decl_list(std::vector<std::unique_ptr<ast_node>>& list) {
   decl_list_prime(list);
 }
 
+
+// decl_list -> decl decl_list_prime | epsilon
 void decl_list_prime(std::vector<std::unique_ptr<ast_node>>& list) {
   if (CurTok.type != EOF_TOK) {
     auto declaration = decl();
@@ -408,15 +409,13 @@ void decl_list_prime(std::vector<std::unique_ptr<ast_node>>& list) {
   }
 }
 
-
+// lookahead function used by decl to decide between var_decl and fun_decl
 TOKEN peekll3() {
   TOKEN old = CurTok;
 
   TOKEN lookahead1 = getNextToken();
   TOKEN lookahead2 = getNextToken();
 
-  // std::cout << "l1 " << lookahead1.lexeme << std::endl;
-  // std::cout << "l2 " << lookahead2.lexeme << std::endl;
 
   TOKEN temp = lookahead2; //token to return for lookahead
 
@@ -428,23 +427,21 @@ TOKEN peekll3() {
   return temp;
 }
 
-
+// decl -> var_decl | fun_decl
 std::unique_ptr<ast_node> decl() { 
   switch (CurTok.type) {
-    case (VOID_TOK):
+    case (VOID_TOK):  //only fun_decl uses "void"
       return fun_decl();
     case (INT_TOK):
     case (FLOAT_TOK):
     case (BOOL_TOK):
-      // lookahead 
+      
 
       TOKEN lookahead = peekll3();
-      // std::cerr << "curtok: " << CurTok.lexeme << std::endl;
-      // std::cerr << "lookahead: " << lookahead.lexeme << std::endl;
       switch (lookahead.type) {
-        case (SC):
+        case (SC):  // a ";" follows an identifier in a variable declaration
           return var_decl();
-        case (LPAR):
+        case (LPAR):  // a "(" follows an identifier in a function declaration
           return fun_decl();
       }
 
@@ -453,6 +450,8 @@ std::unique_ptr<ast_node> decl() {
   exit(0);
 }
 
+
+// var_decl -> var_type IDENT ";"
 std::unique_ptr<var_decl_ast> var_decl() {
   TOKEN type = var_type();
   TOKEN name = CurTok;
@@ -1201,9 +1200,9 @@ void arg_list_prime(std::vector<std::unique_ptr<ast_node>>& list) {
 // Code Generation
 //===----------------------------------------------------------------------===//
 
-static LLVMContext TheContext;
-static IRBuilder<> Builder(TheContext);
-static std::unique_ptr<Module> TheModule;
+LLVMContext TheContext;
+IRBuilder<> Builder(TheContext);
+std::unique_ptr<Module> TheModule;
 
 // //===----------------------------------------------------------------------===//
 // // AST Printer
