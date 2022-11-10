@@ -8,6 +8,7 @@ def main():
 
     for t in tests:
         os.system(f"./mccomp tests/{t}/{t}.c")
+
     
 
 if __name__ == "__main__": main()

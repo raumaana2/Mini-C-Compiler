@@ -120,7 +120,7 @@ class ast_node {
 public:
   virtual ~ast_node() {}
   // virtual Value *codegen() = 0;
-  virtual std::string to_string() const {
+  virtual std::string to_string(int depth) const {
     return "";
   };
 };
@@ -136,57 +136,12 @@ class literal_ast_node : public ast_node {
 public:
   literal_ast_node(TOKEN tok) : Tok(tok) {}
   // virtual Value *codegen() override;
-  virtual std::string to_string() const override {
+  virtual std::string to_string(int depth) const override {
   // return a sting representation of this AST node
-    return Tok.lexeme;
+    std::string whitespace(depth, ' ');
+    return whitespace + Tok.lexeme;
   };
 };
-
-
-// /// int_ast_node - Class for integer literals like 1, 2, 10,
-// class int_ast_node : public ast_node {
-//   int Val;
-//   TOKEN Tok;
-//   std::string Name;
-
-// public:
-//   int_ast_node(TOKEN tok, int val) : Val(val), Tok(tok) {}
-  // virtual Value *codegen() override;
-//   // virtual std::string to_string() const override {
-//   // return a sting representation of this AST node
-//   //};
-// };
-
-// /// float_ast_node - Class for float literals like 1.0, 2.5, 10.000001,
-// class float_ast_node : public ast_node {
-//   float Val;
-//   TOKEN Tok;
-//   std::string Name;
-
-// public:
-//   float_ast_node(TOKEN tok, float val) : Val(val), Tok(tok) {}
-  // virtual Value *codegen() override;
-//   // virtual std::string to_string() const override {
-//   // return a sting representation of this AST node
-//   //};
-// };
-
-
-// /// bool_ast_node - Class for boolean literals like true, false
-// class bool_ast_node : public ast_node {
-//   bool Val;
-//   TOKEN Tok;
-//   std::string Name;
-
-// public:
-//   bool_ast_node(TOKEN tok, bool val) : Val(val), Tok(tok) {}
-  // virtual Value *codegen() override;
-//   // virtual std::string to_string() const override {
-//   // return a sting representation of this AST node
-//   //};
-// };
-
-
 
 
 /// void_ast_node - Class for boolean literals like true, false
@@ -196,12 +151,13 @@ class void_ast_node : public ast_node {
 public:
   void_ast_node(TOKEN tok) : Tok(tok) {}
   // virtual Value *codegen() override;
-  // virtual std::string to_string() const override {
+  // virtual std::string to_string(int depth) const override {
   // return a sting representation of this AST node
   //};
-  virtual std::string to_string() const override {
+  virtual std::string to_string(int depth) const override {
   // return a sting representation of this AST node
-    return Tok.lexeme;
+    std::string whitespace(depth, ' ');
+    return whitespace + Tok.lexeme;
   };
 };
 
@@ -216,11 +172,13 @@ public:
         std::unique_ptr<ast_node> RHS) : Op(op), LHS(std::move(LHS)),
     RHS(std::move(RHS)) {}
 
-    virtual std::string to_string() const override {
+    virtual std::string to_string(int depth) const override {
     // return a sting representation of this AST node
-      std::string left = (LHS) ? LHS->to_string() : "null";
-      std::string right = (RHS) ? RHS->to_string() : "null";
-      return "Op: " + Op.lexeme + "\n" + left + "\n" + right; 
+      
+      std::string whitespace(depth, ' ');
+      std::string left = (LHS) ? LHS->to_string(depth+1) : "null";
+      std::string right = (RHS) ? RHS->to_string(depth+1) : "null";
+      return whitespace + "Op: " + Op.lexeme + "\n" + whitespace + left + "\n" + whitespace + right; 
     };
 
 };
@@ -235,11 +193,12 @@ class unary_expr_ast : public ast_node {
 
 public:
   unary_expr_ast(TOKEN op, std::unique_ptr<ast_node> expr) : Op(op), Expr(std::move(expr)) {}
-  virtual std::string to_string() const override {
+  virtual std::string to_string(int depth) const override {
     // return a sting representation of this AST node
-    
-    std::string expression = (Expr) ? Expr->to_string() : "null";
-    return "Op: " + Op.lexeme + "\n" + expression;
+    std::string whitespace(depth, ' ');
+    depth += 1;
+    std::string expression = (Expr) ? Expr->to_string(depth+1) : "null";
+    return whitespace + "Op: " + Op.lexeme + "\n" +  expression;
   };
 };
 
@@ -251,16 +210,16 @@ class call_expr_ast : public ast_node {
 public:
   call_expr_ast(TOKEN callee,std::vector<std::unique_ptr<ast_node>> args) :
     Callee(callee), Args(std::move(args)) {}
-  virtual std::string to_string() const override {
+  virtual std::string to_string(int depth) const override {
     // return a sting representation of this AST node
-    // boost::format nodes = boost::format("function call: %1%() ");
 
     std::string arguments = "";
     for (int i = 0; i < Args.size(); i++) {
-      std::string element = (Args[i]) ? Args[i]->to_string() : "null";
+      std::string element = (Args[i]) ? Args[i]->to_string(depth+1) : "null";
       (i < Args.size() - 1) ? arguments += element + ", ": arguments += element;
     }
-    return "function call: " + Callee.lexeme + "(" + arguments + ")";
+    std::string whitespace(depth, ' ');
+    return whitespace + Callee.lexeme + "(" + arguments + ")";
   };
 };
 
@@ -274,15 +233,16 @@ class prototype_ast : public ast_node {
 public:
   prototype_ast(TOKEN type, TOKEN name, std::vector<std::unique_ptr<ast_node>> args) 
     : Type(type), Name(name), Args(std::move(args)) {}
-  virtual std::string to_string() const override {
+  virtual std::string to_string(int depth) const override {
     // return a sting representation of this AST node
-
+    // depth += 1;
     std::string arguments = "";
     for (int i = 0; i < Args.size(); i++) {
-      std::string element = (Args[i]) ? Args[i]->to_string() : "null";
+      std::string element = (Args[i]) ? Args[i]->to_string(0) : "null";
       (i < Args.size() - 1) ? arguments += element + ", ": arguments += element;
     }
-    return "prototype: " + Type.lexeme + " " + Name.lexeme + "(" + arguments + ")";
+    std::string whitespace(depth, ' ');
+    return whitespace + Type.lexeme + " " + Name.lexeme + "(" + arguments + ")";
   };
 };
 
@@ -295,11 +255,12 @@ class function_ast : public ast_node  {
 public:
   function_ast(std::unique_ptr<prototype_ast> proto, 
     std::unique_ptr<ast_node> body) : Proto(std::move(proto)), Body(std::move(body)) {}
-  virtual std::string to_string() const override {
+  virtual std::string to_string(int depth) const override {
     // return a sting representation of this AST node
-    std::string prototype = (Proto) ? Proto->to_string() : "null";
-    std::string functionbody = (Body) ? Body->to_string() : "null";
-    return "function declaration: " + prototype + "\n" + functionbody; 
+    std::string whitespace(depth, ' ');
+    std::string prototype = (Proto) ? Proto->to_string(0) : "null";
+    std::string functionbody = (Body) ? Body->to_string(depth+1) : "null";
+    return whitespace + prototype + "\n" + functionbody; 
   };
 
 };
@@ -315,12 +276,13 @@ public:
   if_ast(std::unique_ptr<ast_node> condition, std::unique_ptr<ast_node> if_body, std::unique_ptr<ast_node> else_body) :
     Condition(std::move(condition)), If_body(std::move(if_body)), Else_body(std::move(else_body)) {}
   
-  virtual std::string to_string() const override {
+  virtual std::string to_string(int depth) const override {
     // return a sting representation of this AST node
-    std::string con = (Condition) ? Condition->to_string() : "null";
-    std::string ifbody = (If_body) ? If_body->to_string() : "null";
-    std::string elsebody = (Else_body) ? Else_body->to_string() : "null";
-    return "if (" + con + ") then \n " + ifbody + "\n else \n" + elsebody; 
+    std::string con = (Condition) ? Condition->to_string(0) : "null";
+    std::string ifbody = (If_body) ? If_body->to_string(depth+1) : "null";
+    std::string elsebody = (Else_body) ? Else_body->to_string(depth+1) : "null";
+    std::string whitespace(depth, ' ');
+    return whitespace + "if (" + con + ")\n " + ifbody + "\n" + whitespace +"else \n" + whitespace + elsebody; 
   };
 };
 
@@ -333,11 +295,12 @@ public:
   while_ast(std::unique_ptr<ast_node> condition, std::unique_ptr<ast_node> body) :
     Condition(std::move(condition)), Body(std::move(body)) {}
   
-  virtual std::string to_string() const override {
+  virtual std::string to_string(int depth) const override {
     // return a sting representation of this AST node
-    std::string con = (Condition) ? Condition->to_string() : "null";
-    std::string whilebody = (Body) ? Body->to_string() : "null";
-    return "while (" + con + ") \n" + whilebody; 
+    std::string con = (Condition) ? Condition->to_string(0) : "null";
+    std::string whilebody = (Body) ? Body->to_string(depth+1) : "null";
+    std::string whitespace(depth, ' ');
+    return whitespace + "while (" + con + ") \n" + whilebody; 
     
   };
 };
@@ -348,10 +311,11 @@ class return_ast : public ast_node {
 
 public:
   return_ast(std::unique_ptr<ast_node> body) : Body(std::move(body)) {}
-  virtual std::string to_string() const override {
+  virtual std::string to_string(int depth) const override {
     // return a sting representation of this AST node
-    std::string returnbody = (Body) ? Body->to_string() : "null";
-    return "return " + returnbody;
+    std::string returnbody = (Body) ? Body->to_string(0) : "null";
+    std::string whitespace(depth, ' ');
+    return whitespace + "return " + returnbody;
   };
 };
 
@@ -362,9 +326,10 @@ class var_decl_ast : public ast_node {
 
 public:
   var_decl_ast(TOKEN type, TOKEN name) : Type(type), Name(name)  {}
-  virtual std::string to_string() const override {
+  virtual std::string to_string(int depth) const override {
     // return a sting representation of this AST node
-    return "declared " + Type.lexeme + " " + Name.lexeme;
+    std::string whitespace(depth, ' ');
+    return whitespace + Type.lexeme + " " + Name.lexeme;
   };
 };
 
@@ -377,10 +342,11 @@ public:
   var_assign_ast(TOKEN name, std::unique_ptr<ast_node> expr) : Name(name), Expr(std::move(expr)) {
 
   }
-  virtual std::string to_string() const override {
+  virtual std::string to_string(int depth) const override {
     // return a sting representation of this AST node
-    std::string expression = (Expr) ? Expr->to_string() : "null";
-    return "variable " + Name.lexeme + " assigned " + expression;
+    std::string expression = (Expr) ? Expr->to_string(depth+1) : "null";
+    std::string whitespace(depth, ' ');
+    return whitespace + Name.lexeme + " assigned\n" + expression;
   };
 };
 
@@ -392,32 +358,35 @@ class scope_ast : public ast_node {
 public:
   scope_ast(std::vector<std::unique_ptr<ast_node>> list_a, std::vector<std::unique_ptr<ast_node>> list_b) : 
     List_a(std::move(list_a)), List_b(std::move(list_b)) {}
-  virtual std::string to_string() const override {
+  virtual std::string to_string(int depth) const override {
     // return a sting representation of this AST node
+    std::string whitespace(depth, ' ');
     std::string list_elements = "";
+    int cur_depth = depth;
     for (int i = 0; i < List_a.size(); i++) {
-      std::string element = (List_a[i]) ? List_a[i]->to_string() : "null";
+      std::string element = (List_a[i]) ? List_a[i]->to_string(cur_depth) : "null";
       (i < List_a.size() - 1) ? list_elements += element + "\n": list_elements += element;
     }
     list_elements += "\n";
     for (int i = 0; i < List_b.size(); i++) {
-      std::string element = (List_b[i]) ? List_b[i]->to_string() : "null";
+      std::string element = (List_b[i]) ? List_b[i]->to_string(cur_depth) : "null";
       (i < List_b.size() - 1) ? list_elements += element + "\n": list_elements += element;
     }
     return list_elements;
   };
 };
 
-class identifier_ast : public ast_node {
-  TOKEN Identifier;
+// class identifier_ast : public ast_node {
+//   TOKEN Identifier;
 
-public: 
-  identifier_ast(TOKEN identifier) : Identifier(identifier) {}
-  virtual std::string to_string() const override {
-    // return a sting representation of this AST node
-    return "indentifier: " + Identifier.lexeme;
-  };
-};
+// public: 
+//   identifier_ast(TOKEN identifier) : Identifier(identifier) {}
+//   virtual std::string to_string(int depth) const override {
+//     // return a sting representation of this AST node
+
+//     return "indentifier: " + Identifier.lexeme;
+//   };
+// };
 
 
 

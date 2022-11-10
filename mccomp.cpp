@@ -287,6 +287,7 @@ static void putBackToken(TOKEN tok) { tok_buffer.push_front(tok); }
 
 void match(int word) {
   if (CurTok.type == word) {
+    // std::cerr << "matched " << CurTok.lexeme << std::endl;
     getNextToken();
   } else {
     std::cerr << "Expected token " << word << " but got " << CurTok.type << std::endl;
@@ -341,15 +342,6 @@ std::unique_ptr<ast_node> program() {
       exit(0);
 
   }
-  // if (CurTok.type == EXTERN) {
-  // } else if (CurTok.type == BOOL_TOK || FLOAT_TOK || INT_TOK || VOID_TOK)  {
-  //   decl_list(std::move(decl_vector));
-  // } else {
-  
-  // }
-
-  
-
 
 }
 
@@ -422,6 +414,9 @@ TOKEN peekll3() {
   TOKEN lookahead1 = getNextToken();
   TOKEN lookahead2 = getNextToken();
 
+  // std::cout << "l1 " << lookahead1.lexeme << std::endl;
+  // std::cout << "l2 " << lookahead2.lexeme << std::endl;
+
   TOKEN temp = lookahead2; //token to return for lookahead
 
   putBackToken(lookahead2);
@@ -441,15 +436,19 @@ std::unique_ptr<ast_node> decl() {
     case (FLOAT_TOK):
     case (BOOL_TOK):
       // lookahead 
+
       TOKEN lookahead = peekll3();
+      // std::cerr << "curtok: " << CurTok.lexeme << std::endl;
+      // std::cerr << "lookahead: " << lookahead.lexeme << std::endl;
       switch (lookahead.type) {
-        case (COMMA):
+        case (SC):
           return var_decl();
         case (LPAR):
           return fun_decl();
       }
 
   }
+  std::cerr << "expected decl() but got " << CurTok.lexeme << std::endl;
   exit(0);
 }
 
@@ -530,6 +529,7 @@ std::vector<std::unique_ptr<ast_node>> params() {
     return std::move(parameter_list);
   }
   //error
+  std::cerr << "expected params()" << std::endl;
   exit(0);
 }
 
@@ -823,7 +823,7 @@ std::unique_ptr<ast_node> or_val_prime(std::unique_ptr<ast_node> lhs) {
   case(RPAR):
   case(SC):
   case(COMMA):
-    return nullptr;
+    return std::move(lhs);
   case (OR):
     op = CurTok;
     getNextToken();
@@ -838,6 +838,7 @@ std::unique_ptr<ast_node> or_val_prime(std::unique_ptr<ast_node> lhs) {
       return std::move(bin_op);
   }
   //error
+  std::cerr << "expected expression" << std::endl;
   exit(0);
 
 }
@@ -855,7 +856,7 @@ std::unique_ptr<ast_node> and_val_prime(std::unique_ptr<ast_node> lhs) {
   case(SC):
   case(OR):
   case(COMMA):
-    return nullptr;
+    return std::move(lhs);
   case (AND):
     op = CurTok;
     getNextToken();
@@ -870,6 +871,7 @@ std::unique_ptr<ast_node> and_val_prime(std::unique_ptr<ast_node> lhs) {
       );
       return std::move(bin_op);
   }
+  std::cerr << "and_val" << std::endl;
   exit(0);
 }
 
@@ -886,7 +888,7 @@ std::unique_ptr<ast_node> eq_val_prime(std::unique_ptr<ast_node> lhs) {
     case(SC):
     case(OR):
     case(COMMA):
-      return nullptr;
+      return std::move(lhs);
     case (EQ):
     case (NE):
       op = CurTok;
@@ -904,6 +906,7 @@ std::unique_ptr<ast_node> eq_val_prime(std::unique_ptr<ast_node> lhs) {
       );
       return std::move(bin_op);
   }
+  std::cerr << "eq_val" << std::endl;
   exit(0);
 }
 
@@ -922,7 +925,7 @@ std::unique_ptr<ast_node> comp_val_prime(std::unique_ptr<ast_node> lhs) {
   case(EQ):
   case(OR):
   case(COMMA):
-    return nullptr;
+    return std::move(lhs);
   case (LE):
   case (LT):
   case (GE):
@@ -942,6 +945,7 @@ std::unique_ptr<ast_node> comp_val_prime(std::unique_ptr<ast_node> lhs) {
       );
       return std::move(bin_op);
   }
+  std::cerr << "comp_val" << std::endl;
   exit(0);
 }
 
@@ -965,7 +969,7 @@ std::unique_ptr<ast_node> add_val_prime(std::unique_ptr<ast_node> lhs) {
     case(GE):
     case(OR):
     case(COMMA):
-      return nullptr;
+      return std::move(lhs);
     case (PLUS):
     case (MINUS):
       op = CurTok;
@@ -983,6 +987,7 @@ std::unique_ptr<ast_node> add_val_prime(std::unique_ptr<ast_node> lhs) {
       );
       return std::move(bin_op);
   }
+  std::cerr << "add_val" << std::endl;
   exit(0);
 }
 
@@ -1008,7 +1013,7 @@ std::unique_ptr<ast_node> mul_val_prime(std::unique_ptr<ast_node> lhs) {
     case(GE):
     case(OR):
     case(COMMA):
-      return nullptr;
+      return std::move(lhs);
     case (ASTERIX):
     case (DIV):
     case (MOD):
@@ -1023,6 +1028,7 @@ std::unique_ptr<ast_node> mul_val_prime(std::unique_ptr<ast_node> lhs) {
       );
       return std::move(bin_op);
   }
+  std::cerr << "mul_val" << std::endl;
   exit(0);
 }
 
@@ -1045,6 +1051,7 @@ std::unique_ptr<ast_node> unary() {
     
     return std::move(unary_expression);
   }
+  std::cerr << "unary" << std::endl;
   exit(0);
 }
 
@@ -1097,7 +1104,8 @@ std::unique_ptr<ast_node> identifiers_B() {
       return std::move(result);  
     } case (LPAR):
       // function call
-      TOKEN callee = CurTok;
+      TOKEN callee = identifier;
+
       match(LPAR);
       std::vector<std::unique_ptr<ast_node>> arguments = args();
       
@@ -1159,7 +1167,7 @@ static std::unique_ptr<Module> TheModule;
 
 inline llvm::raw_ostream &operator<<(llvm::raw_ostream &os,
                                      const ast_node &ast) {
-  os << ast.to_string();
+  os << ast.to_string(0);
   return os;
 }
 
@@ -1196,7 +1204,7 @@ int main(int argc, char **argv) {
   // Run the parser now.
   auto test = parser();
 
-  std::cout << test->to_string() << std::endl;
+  std::cout << test->to_string(0) << std::endl;
   fprintf(stderr, "Parsing Finished\n");
 
   //********************* Start printing final IR **************************
