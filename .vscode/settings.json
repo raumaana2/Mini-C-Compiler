@@ -76,6 +76,8 @@
         "__verbose_abort": "cpp",
         "ios": "cpp",
         "set": "cpp",
-        "stack": "cpp"
+        "stack": "cpp",
+        "__locale": "cpp",
+        "locale": "cpp"
     }
 }
