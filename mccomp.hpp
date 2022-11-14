@@ -117,7 +117,6 @@ struct TOKEN {
 
 /// ASTNode - Base class for all AST nodes.
 class ASTNode {
-  TOKEN Type;
 public:
   virtual ~ASTNode() {}
   virtual Value *codegen() = 0;
@@ -179,18 +178,9 @@ public:
 
   Value *codegen() override;
   std::string to_string(int depth) const override;
+  
 };
 
-// /// VoidASTNode - Class for to store void token, mainly used in function
-// /// definitions and declarations
-// class VoidASTNode : public ASTNode {
-//   TOKEN Tok;
-
-// public:
-//   VoidASTNode(TOKEN tok) : Tok(tok) {}
-//   Value *codegen() override;
-//   std::string to_string(int depth) const override;
-// };
 
 // Class for binary expressions
 class BinaryExprAST : public ASTNode {

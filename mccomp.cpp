@@ -26,11 +26,7 @@ static std::unique_ptr<Module> TheModule;
 
 
 
-static AllocaInst* CreateEntryBlockAlloca(Function *TheFunction, const std::string &VarName) {
-  IRBuilder<> TmpB(&TheFunction->getEntryBlock(), TheFunction->getEntryBlock().begin());
 
-  return TmpB.CreateAlloca(Type::getInt32Ty(TheContext), 0, VarName.c_str());
-}
 
 static TOKEN returnTok(std::string lexVal, int tok_type) {
   TOKEN return_tok;
@@ -275,7 +271,16 @@ static TOKEN gettok() {
   return returnTok(s, int(ThisChar));
 }
 
-static std::map<std::string, AllocaInst*> NamedValues;
+static AllocaInst* CreateEntryBlockAlloca(Function *TheFunction, const std::string &VarName, llvm::Type* type) {
+  IRBuilder<> TmpB(&TheFunction->getEntryBlock(), TheFunction->getEntryBlock().begin());
+
+  return TmpB.CreateAlloca(type, 0, VarName.c_str());
+}
+
+
+
+static std::vector<std::map<std::string, AllocaInst*>> Scopes; 
+static std::map<std::string, GlobalVariable*> GlobalValues;
 
 //// AST Node to_string() 
 
@@ -422,25 +427,41 @@ Value *ProgramAST::codegen() {
     if (ExternList[i])
       ExternList[i]->codegen();
   }
-
-  // for (int i = 0; i < DeclList.size(); i++) {
-  //   if (DeclList[i])
-  //     DeclList[i]->codegen();
-  // }
+  
+  
+  for (int i = 0; i < DeclList.size(); i++) {
+    if (DeclList[i])
+      DeclList[i]->codegen();
+  }
 
 
   return nullptr;
 }
 
-Value *BlockAST::codegen() {}
+Value *BlockAST::codegen() {
+  for (int i = 0; i < LocalDecls.size(); i++) {
+    if (LocalDecls[i])
+      LocalDecls[i]->codegen();
+  }
+
+  for (int i = 0; i < StmtList.size(); i++) {
+    if (StmtList[i])
+      StmtList[i]->codegen();
+  }
+
+  return nullptr;
+}
 
 Value *LiteralASTNode::codegen() {
   switch (Tok.type) {
   case (INT_TOK):
+    std::cout << Tok.lexeme << std::endl;
     return ConstantInt::get(TheContext, APInt(std::stoi(Tok.lexeme), false));
   case (FLOAT_TOK):
     return ConstantFP::get(TheContext, APFloat(std::stof(Tok.lexeme)));
+
   case (BOOL_TOK):
+
     return ConstantInt::get(TheContext, APInt(std::stoi(Tok.lexeme), false));
   // case (IDENT):
   //   Value *V = NamedValues[Tok.lexeme];
@@ -451,6 +472,8 @@ Value *LiteralASTNode::codegen() {
   //   return Builder.CreateLoad(V, Tok.lexeme.c_str());
     
   }
+
+  return nullptr;
 }
 
 
@@ -480,6 +503,8 @@ Value *BinaryExprAST::codegen() {
   case (GT):
     return Builder.CreateICmpUGT(LHS->codegen(), RHS->codegen(), "ugttmp");
   }
+
+  return nullptr;
 }
 
 
@@ -490,6 +515,8 @@ Value *UnaryExprAST::codegen() {
   case (MINUS):
     return Builder.CreateNeg(Expr->codegen(), "negtmp");
   }
+
+  return nullptr;
 }
 
 
@@ -559,24 +586,38 @@ Function *PrototypeAST::codegen() {
 
 
 Function *FunctionAST::codegen() {
-  Function *TheFunction = TheModule->getFunction(Proto->getName());
+  // Function *TheFunction = TheModule->getFunction(Proto->getName());
 
-  if (!TheFunction)
-    TheFunction = Proto->codegen();
+  // if (!TheFunction)
+  //   TheFunction = Proto->codegen();
 
-  if (!TheFunction)
-    return nullptr;
+  // if (!TheFunction)
+  //   return nullptr;
 
-  BasicBlock *BB = BasicBlock::Create(TheContext, "entry", TheFunction);
-  Builder.SetInsertPoint(BB);
+  // BasicBlock *BB = BasicBlock::Create(TheContext, "entry", TheFunction);
+  // Builder.SetInsertPoint(BB);
 
-  NamedValues.clear();
+  // NamedValues.clear();
 
-  for (auto &Arg: TheFunction->args()) {
-    AllocaInst *Alloca = CreateEntryBlockAlloca(TheFunction, Arg.getName().getData());
-    Builder.CreateStore(&Arg, Alloca);
-    NamedValues[std::string(Arg.getName())] = Alloca;
-  }
+  // for (auto &Arg: TheFunction->args()) {
+  //   AllocaInst *Alloca = CreateEntryBlockAlloca(TheFunction, Arg.getName().str());
+  //   Builder.CreateStore(&Arg, Alloca);
+  //   NamedValues[std::string(Arg.getName())] = Alloca;
+  // }
+
+  // if (Value *RetVal = Body->codegen()) {
+  //   Builder.CreateRet(RetVal);
+
+  //   verifyFunction(*TheFunction);
+
+
+  //   return TheFunction;
+
+  // }
+
+  // TheFunction->eraseFromParent();
+
+  return nullptr;
 
 }
 
@@ -662,24 +703,33 @@ Value *ReturnAST::codegen() {
 }
 
 
-Value *VarDeclAST::codegen() { return nullptr; }
+Value *VarDeclAST::codegen() { 
+
+  // Function *TheFunction = Builder.GetInsertBlock()->getParent();
+
+  // AllocaInst* x = 
+  //   CreateEntryBlockAlloca(TheFunction, "x");
+
+
+  return nullptr;
+}
 
 
 Value *VarAssignAST::codegen() {
 
-  Value *Val = Expr->codegen();
+  // Value *Val = Expr->codegen();
 
-  if (!Val)
-    return nullptr;
+  // if (!Val)
+  //   return nullptr;
 
-  Value *Variable = NamedValues[Name.lexeme];
+  // Value *Variable = NamedValues[Name.lexeme];
 
-  if (!Variable)
-    return nullptr;
+  // if (!Variable)
+  //   return nullptr;
 
-  Builder.CreateStore(Val, Variable);
+  // Builder.CreateStore(Val, Variable);
   
-  return Val;
+  // return Val;
 }
 
 
