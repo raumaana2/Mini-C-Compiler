@@ -285,6 +285,11 @@ Value *ProgramAST::codegen() {
       ExternList[i]->codegen();
   }
 
+  // for (int i = 0; i < DeclList.size(); i++) {
+  //   if (DeclList[i])
+  //     DeclList[i]->codegen();
+  // }
+
   std::cout << "testing" << std::endl;
 
   return nullptr;
@@ -447,15 +452,20 @@ std::string CallExprAST::to_string(int depth) const {
 }
 
 Function *PrototypeAST::codegen() {
-  std::cout << "test" << std::endl;
-  std::vector<llvm::Type*> Ints(Args.size(), Type::getInt32Ty(TheContext));
-  std::cout << "test" << std::endl;
+ 
+  std::vector<llvm::Type*> Arguments(Args.size());
+
+  for (int i = 0; i < Args.size(); i++) {
+    Arguments.push_back(Args[i]->codegen());
+    
+  }
+
   FunctionType *FT =
-      FunctionType::get(Type::getInt32Ty(TheContext), Ints, false);
+  FunctionType::get(Type::getInt32Ty(TheContext), Ints, false);
+
 
   Function *F =
       Function::Create(FT, Function::ExternalLinkage, Name.lexeme, TheModule.get());
-  std::cout << "test" << std::endl;
   return F;
 }
 
