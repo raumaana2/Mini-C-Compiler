@@ -181,16 +181,16 @@ public:
   std::string to_string(int depth) const override;
 };
 
-/// VoidASTNode - Class for to store void token, mainly used in function
-/// definitions and declarations
-class VoidASTNode : public ASTNode {
-  TOKEN Tok;
+// /// VoidASTNode - Class for to store void token, mainly used in function
+// /// definitions and declarations
+// class VoidASTNode : public ASTNode {
+//   TOKEN Tok;
 
-public:
-  VoidASTNode(TOKEN tok) : Tok(tok) {}
-  Value *codegen() override;
-  std::string to_string(int depth) const override;
-};
+// public:
+//   VoidASTNode(TOKEN tok) : Tok(tok) {}
+//   Value *codegen() override;
+//   std::string to_string(int depth) const override;
+// };
 
 // Class for binary expressions
 class BinaryExprAST : public ASTNode {
@@ -205,6 +205,9 @@ public:
   Value *codegen() override;
 
   std::string to_string(int depth) const override;
+  std::string getOp() {
+    return Op.lexeme;
+  }
 };
 
 // class for unary expressions
@@ -219,6 +222,10 @@ public:
   Value *codegen() override;
 
   std::string to_string(int depth) const override;
+
+  std::string getOp() {
+    return Op.lexeme;
+  }
 };
 
 // class for function calls
@@ -233,6 +240,10 @@ public:
   Value *codegen() override;
 
   std::string to_string(int depth) const override;
+
+  std::string getCallee() {
+    return Callee.lexeme;
+  }
 };
 
 // class for function signature (used for for both the function definition and
@@ -250,6 +261,14 @@ public:
   Function *codegen() override;
 
   std::string to_string(int depth) const override;
+
+  std::string getName() {
+    return Name.lexeme;
+  }
+
+  std::string getProtoType() {
+    return Type.lexeme;
+  }
 };
 
 // class for function signature and body

@@ -322,11 +322,6 @@ std::string LiteralASTNode::to_string(int depth) const {
   return whitespace + Tok.lexeme;
 }
 
-std::string VoidASTNode::to_string(int depth) const {
-  // return a sting representation of this AST node
-  std::string whitespace(depth, ' ');
-  return whitespace + Tok.lexeme;
-}
 
 std::string BinaryExprAST::to_string(int depth) const {
   // return a sting representation of this AST node
@@ -458,7 +453,6 @@ Value *LiteralASTNode::codegen() {
   }
 }
 
-Value *VoidASTNode::codegen() {}
 
 Value *BinaryExprAST::codegen() {
 
@@ -518,7 +512,7 @@ Value *CallExprAST::codegen() {
 }
 
 
-llvm::Type *ArgType(TOKEN t) {
+llvm::Type *getType(TOKEN t) {
   switch (t.type) {
     case (INT_TOK):
       return Type::getInt32Ty(TheContext);
@@ -533,7 +527,7 @@ llvm::Type *ArgType(TOKEN t) {
   return nullptr;
 }
 
-
+// code generation for the prototype of a function 
 Function *PrototypeAST::codegen() {
  
   std::vector<llvm::Type*> Arguments;
@@ -541,11 +535,13 @@ Function *PrototypeAST::codegen() {
   //load correct types into prototype arguments list
   for (int i = 0; i < Args.size(); i++) {
     if (Args[i])
-      Arguments.push_back(ArgType(Args[i]->Type));
+      Arguments.push_back(getType(Args[i]->Type));
   }
+  
+
 
   FunctionType *FT =
-  FunctionType::get(Type::getInt32Ty(TheContext), Arguments, false);
+  FunctionType::get(getType(Type), Arguments, false);
 
 
   Function *F =
@@ -563,10 +559,28 @@ Function *PrototypeAST::codegen() {
 
 
 Function *FunctionAST::codegen() {
+  Function *TheFunction = TheModule->getFunction(Proto->getName());
+
+  if (!TheFunction)
+    TheFunction = Proto->codegen();
+
+  if (!TheFunction)
+    return nullptr;
+
+  BasicBlock *BB = BasicBlock::Create(TheContext, "entry", TheFunction);
+  Builder.SetInsertPoint(BB);
+
+  NamedValues.clear();
+
+  for (auto &Arg: TheFunction->args()) {
+    AllocaInst *Alloca = CreateEntryBlockAlloca(TheFunction, Arg.getName().getData());
+    Builder.CreateStore(&Arg, Alloca);
+    NamedValues[std::string(Arg.getName())] = Alloca;
+  }
 
 }
 
-// need to deal with case where else does not exist as else_stmt is nullable
+// code generation for IfElse/If statments 
 Value *IfAST::codegen() {
   Function *TheFunction = Builder.GetInsertBlock()->getParent();
 
@@ -584,13 +598,12 @@ Value *IfAST::codegen() {
 
   BasicBlock *end_ = BasicBlock::Create(TheContext, "end");
 
+  // check if end is empty and if so, create condition branch with only true_ and end_
   if (!end_) {
     Builder.CreateCondBr(comp, true_, end_);
   } else { 
     Builder.CreateCondBr(comp, true_, false_);
   }
-
-
 
   // if true
   Builder.SetInsertPoint(true_);
