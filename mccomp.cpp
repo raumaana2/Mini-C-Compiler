@@ -342,13 +342,13 @@ Value *LiteralASTNode::codegen() {
     return ConstantFP::get(TheContext, APFloat(std::stof(Tok.lexeme)));
   case (BOOL_TOK):
     return ConstantInt::get(TheContext, APInt(std::stoi(Tok.lexeme), false));
-    // case (IDENT):
-    //   Value *V = NamedValues[Name];
+  case (IDENT):
+    Value *V = NamedValues[Tok.lexeme];
 
-    // if (!V)
-    //   return nullptr;
+    if (!V)
+      return nullptr;
 
-    // return Builder.CreateLoad(V, Name.c_str());
+    return Builder.CreateLoad(V, Tok.lexeme.c_str());
 
     
   }
@@ -455,17 +455,27 @@ Function *PrototypeAST::codegen() {
  
   std::vector<llvm::Type*> Arguments(Args.size());
 
-  for (int i = 0; i < Args.size(); i++) {
-    Arguments.push_back(Args[i]->codegen());
-    
-  }
+  //load correct types into prototype
+
+  // for (int i = 0; i < Args.size(); i++) {
+  //   Arguments.push_back(Args[i]->codegen());
+
+  // }
 
   FunctionType *FT =
-  FunctionType::get(Type::getInt32Ty(TheContext), Ints, false);
+  FunctionType::get(Type::getInt32Ty(TheContext), Arguments, false);
 
 
   Function *F =
       Function::Create(FT, Function::ExternalLinkage, Name.lexeme, TheModule.get());
+
+
+  //set names for all arguments
+  int i = 0;
+  for (auto &Arg : F->args())
+    Arg.setName(Args[i++]);
+
+
   return F;
 }
 
@@ -602,7 +612,22 @@ std::string VarDeclAST::to_string(int depth) const {
   return whitespace + Type.lexeme + " " + Name.lexeme;
 }
 
-Value *VarAssignAST::codegen() {}
+Value *VarAssignAST::codegen() {
+
+  Value *Val = Expr->codegen();
+
+  if (!Val)
+    return nullptr;
+
+  Value *Variable = NamedValues[Name.lexeme];
+
+  if (!Variable)
+    return nullptr;
+
+  Builder.CreateStore(Val, Variable);
+  
+  return Val;
+}
 
 std::string VarAssignAST::to_string(int depth) const {
   // return a sting representation of this AST node
