@@ -117,6 +117,7 @@ struct TOKEN {
 
 /// ASTNode - Base class for all AST nodes.
 class ASTNode {
+  TOKEN Type;
 public:
   virtual ~ASTNode() {}
   virtual Value *codegen() = 0;
@@ -134,6 +135,24 @@ public:
 
   Value *codegen() override;
   std::string to_string(int depth) const override; 
+};
+
+// class for variable declaration structure
+class VarDeclAST : public ASTNode {
+
+public:
+  TOKEN Type;
+  
+  TOKEN Name;
+
+  VarDeclAST(TOKEN type, TOKEN name) : Type(type), Name(name) {}
+
+  Value* codegen() override;
+
+  std::string to_string(int depth) const override;
+
+  
+  
 };
 
 
@@ -221,11 +240,11 @@ public:
 class PrototypeAST : public ASTNode {
   TOKEN Type;
   TOKEN Name;
-  std::vector<std::unique_ptr<ASTNode>> Args;
+  std::vector<std::unique_ptr<VarDeclAST>> Args;
 
 public:
   PrototypeAST(TOKEN type, TOKEN name,
-               std::vector<std::unique_ptr<ASTNode>> args)
+               std::vector<std::unique_ptr<VarDeclAST>> args)
       : Type(type), Name(name), Args(std::move(args)) {}
 
   Function *codegen() override;
@@ -289,19 +308,6 @@ public:
   std::string to_string(int depth) const override;
 };
 
-// class for variable declaration structure
-class VarDeclAST : public ASTNode {
-  TOKEN Type;
-  TOKEN Name;
-
-
-public:
-  VarDeclAST(TOKEN type, TOKEN name) : Type(type), Name(name) {}
-
-  Value* codegen() override;
-
-  std::string to_string(int depth) const override;
-};
 
 // class for variable assignment structure
 class VarAssignAST : public ASTNode {
@@ -331,10 +337,10 @@ std::unique_ptr<VarDeclAST> var_decl();
 std::unique_ptr<FunctionAST> fun_decl();
 TOKEN var_type();
 TOKEN type_spec();
-std::vector<std::unique_ptr<ASTNode>> params();
-void param_list(std::vector<std::unique_ptr<ASTNode>> &list);
-void param_list_prime(std::vector<std::unique_ptr<ASTNode>> &list);
-std::unique_ptr<ASTNode> param();
+std::vector<std::unique_ptr<VarDeclAST>> params();
+void param_list(std::vector<std::unique_ptr<VarDeclAST>> &list);
+void param_list_prime(std::vector<std::unique_ptr<VarDeclAST>> &list);
+std::unique_ptr<VarDeclAST> param();
 std::unique_ptr<ASTNode> block();
 void local_decls(std::vector<std::unique_ptr<ASTNode>> &list);
 void local_decls_prime(std::vector<std::unique_ptr<ASTNode>> &list);

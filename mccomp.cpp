@@ -277,23 +277,7 @@ static TOKEN gettok() {
 
 static std::map<std::string, AllocaInst*> NamedValues;
 
-// AST Nodes functions 
-
-Value *ProgramAST::codegen() {
-  for (int i = 0; i < ExternList.size(); i++) {
-    if (ExternList[i])
-      ExternList[i]->codegen();
-  }
-
-  // for (int i = 0; i < DeclList.size(); i++) {
-  //   if (DeclList[i])
-  //     DeclList[i]->codegen();
-  // }
-
-  std::cout << "testing" << std::endl;
-
-  return nullptr;
-}
+//// AST Node to_string() 
 
 std::string ProgramAST::to_string(int depth) const {
   std::string whitespace(depth, ' ');
@@ -313,9 +297,6 @@ std::string ProgramAST::to_string(int depth) const {
   return list_elements;
 }
 
-
-Value *BlockAST::codegen() {}
-
 std::string BlockAST::to_string(int depth) const {
   std::string whitespace(depth, ' ');
   std::string list_elements = "";
@@ -334,6 +315,130 @@ std::string BlockAST::to_string(int depth) const {
   return list_elements;
 }
 
+
+std::string LiteralASTNode::to_string(int depth) const {
+  // return a sting representation of this AST node
+  std::string whitespace(depth, ' ');
+  return whitespace + Tok.lexeme;
+}
+
+std::string VoidASTNode::to_string(int depth) const {
+  // return a sting representation of this AST node
+  std::string whitespace(depth, ' ');
+  return whitespace + Tok.lexeme;
+}
+
+std::string BinaryExprAST::to_string(int depth) const {
+  // return a sting representation of this AST node
+
+  std::string whitespace(depth, ' ');
+  std::string left = (LHS) ? LHS->to_string(depth + 1) : "null";
+  std::string right = (RHS) ? RHS->to_string(depth + 1) : "null";
+  return whitespace + "Op: " + Op.lexeme + "\n" + whitespace + left + "\n" +
+         whitespace + right;
+}
+
+std::string UnaryExprAST::to_string(int depth) const {
+  // return a sting representation of this AST node
+  std::string whitespace(depth, ' ');
+  depth += 1;
+  std::string expression = (Expr) ? Expr->to_string(depth + 1) : "null";
+  return whitespace + "Op: " + Op.lexeme + "\n" + expression;
+}
+
+std::string CallExprAST::to_string(int depth) const {
+  std::string arguments = "";
+  for (int i = 0; i < Args.size(); i++) {
+    std::string element = (Args[i]) ? Args[i]->to_string(depth + 1) : "null";
+    (i < Args.size() - 1) ? arguments += element + ", " : arguments += element;
+  }
+  std::string whitespace(depth, ' ');
+  return whitespace + Callee.lexeme + "(" + arguments + ")";
+}
+
+std::string PrototypeAST::to_string(int depth) const {
+  std::string arguments = "";
+  for (int i = 0; i < Args.size(); i++) {
+    std::string element = (Args[i]) ? Args[i]->to_string(0) : "null";
+    (i < Args.size() - 1) ? arguments += element + ", " : arguments += element;
+  }
+  std::string whitespace(depth, ' ');
+  return whitespace + Type.lexeme + " " + Name.lexeme + "(" + arguments + ")";
+}
+
+std::string FunctionAST::to_string(int depth) const {
+  // return a sting representation of this AST node
+  std::string whitespace(depth, ' ');
+  std::string prototype = (Proto) ? Proto->to_string(0) : "null";
+  std::string functionbody = (Body) ? Body->to_string(depth + 1) : "null";
+  return whitespace + prototype + "\n" + functionbody;
+}
+
+std::string IfAST::to_string(int depth) const {
+  // return a sting representation of this AST node
+  std::string con = (Condition) ? Condition->to_string(0) : "null";
+  std::string ifBody = (IfBody) ? IfBody->to_string(depth + 1) : "null";
+  std::string elseBody = (ElseBody) ? ElseBody->to_string(depth + 1) : "null";
+  std::string whitespace(depth, ' ');
+  return whitespace + "if (" + con + ")\n " + ifBody + "\n" + whitespace +
+         "else \n" + whitespace + elseBody;
+}
+
+std::string WhileAST::to_string(int depth) const {
+  // return a sting representation of this AST node
+  std::string con = (Condition) ? Condition->to_string(0) : "null";
+  std::string whilebody = (Body) ? Body->to_string(depth + 1) : "null";
+  std::string whitespace(depth, ' ');
+  return whitespace + "while (" + con + ") \n" + whilebody;
+}
+
+
+std::string ReturnAST::to_string(int depth) const {
+  // return a sting representation of this AST node
+  std::string returnbody = (Body) ? Body->to_string(0) : "null";
+  std::string whitespace(depth, ' ');
+  return whitespace + "return " + returnbody;
+}
+
+
+std::string VarDeclAST::to_string(int depth) const {
+  // return a sting representation of this AST node
+  std::string whitespace(depth, ' ');
+  if (Type.lexeme == "void") {
+    return whitespace + Type.lexeme;
+  }
+  return whitespace + Type.lexeme + " " + Name.lexeme;
+}
+
+
+std::string VarAssignAST::to_string(int depth) const {
+  // return a sting representation of this AST node
+  std::string expression = (Expr) ? Expr->to_string(depth + 1) : "null";
+  std::string whitespace(depth, ' ');
+  return whitespace + Name.lexeme + " assigned\n" + expression;
+}
+
+
+
+//// AST Codegen 
+
+Value *ProgramAST::codegen() {
+  for (int i = 0; i < ExternList.size(); i++) {
+    if (ExternList[i])
+      ExternList[i]->codegen();
+  }
+
+  // for (int i = 0; i < DeclList.size(); i++) {
+  //   if (DeclList[i])
+  //     DeclList[i]->codegen();
+  // }
+
+
+  return nullptr;
+}
+
+Value *BlockAST::codegen() {}
+
 Value *LiteralASTNode::codegen() {
   switch (Tok.type) {
   case (INT_TOK):
@@ -342,31 +447,18 @@ Value *LiteralASTNode::codegen() {
     return ConstantFP::get(TheContext, APFloat(std::stof(Tok.lexeme)));
   case (BOOL_TOK):
     return ConstantInt::get(TheContext, APInt(std::stoi(Tok.lexeme), false));
-  case (IDENT):
-    Value *V = NamedValues[Tok.lexeme];
+  // case (IDENT):
+  //   Value *V = NamedValues[Tok.lexeme];
 
-    if (!V)
-      return nullptr;
+  //   if (!V)
+  //     return nullptr;
 
-    return Builder.CreateLoad(V, Tok.lexeme.c_str());
-
+  //   return Builder.CreateLoad(V, Tok.lexeme.c_str());
     
   }
 }
 
-std::string LiteralASTNode::to_string(int depth) const {
-  // return a sting representation of this AST node
-  std::string whitespace(depth, ' ');
-  return whitespace + Tok.lexeme;
-}
-
 Value *VoidASTNode::codegen() {}
-
-std::string VoidASTNode::to_string(int depth) const {
-  // return a sting representation of this AST node
-  std::string whitespace(depth, ' ');
-  return whitespace + Tok.lexeme;
-}
 
 Value *BinaryExprAST::codegen() {
 
@@ -396,15 +488,6 @@ Value *BinaryExprAST::codegen() {
   }
 }
 
-std::string BinaryExprAST::to_string(int depth) const {
-  // return a sting representation of this AST node
-
-  std::string whitespace(depth, ' ');
-  std::string left = (LHS) ? LHS->to_string(depth + 1) : "null";
-  std::string right = (RHS) ? RHS->to_string(depth + 1) : "null";
-  return whitespace + "Op: " + Op.lexeme + "\n" + whitespace + left + "\n" +
-         whitespace + right;
-}
 
 Value *UnaryExprAST::codegen() {
   switch (Op.type) {
@@ -415,13 +498,6 @@ Value *UnaryExprAST::codegen() {
   }
 }
 
-std::string UnaryExprAST::to_string(int depth) const {
-  // return a sting representation of this AST node
-  std::string whitespace(depth, ' ');
-  depth += 1;
-  std::string expression = (Expr) ? Expr->to_string(depth + 1) : "null";
-  return whitespace + "Op: " + Op.lexeme + "\n" + expression;
-}
 
 Value *CallExprAST::codegen() {
   Function *CalleeF = TheModule->getFunction(Callee.lexeme);
@@ -441,26 +517,32 @@ Value *CallExprAST::codegen() {
   return Builder.CreateCall(CalleeF, ArgsV, "calltmp");
 }
 
-std::string CallExprAST::to_string(int depth) const {
-  std::string arguments = "";
-  for (int i = 0; i < Args.size(); i++) {
-    std::string element = (Args[i]) ? Args[i]->to_string(depth + 1) : "null";
-    (i < Args.size() - 1) ? arguments += element + ", " : arguments += element;
+
+llvm::Type *ArgType(TOKEN t) {
+  switch (t.type) {
+    case (INT_TOK):
+      return Type::getInt32Ty(TheContext);
+    case (FLOAT_TOK): 
+      return Type::getFloatTy(TheContext);
+    case (BOOL_TOK):
+      return Type::getInt1Ty(TheContext);
+    case (VOID_TOK):
+      return Type::getVoidTy(TheContext);
   }
-  std::string whitespace(depth, ' ');
-  return whitespace + Callee.lexeme + "(" + arguments + ")";
+
+  return nullptr;
 }
+
 
 Function *PrototypeAST::codegen() {
  
-  std::vector<llvm::Type*> Arguments(Args.size());
+  std::vector<llvm::Type*> Arguments;
 
-  //load correct types into prototype
-
-  // for (int i = 0; i < Args.size(); i++) {
-  //   Arguments.push_back(Args[i]->codegen());
-
-  // }
+  //load correct types into prototype arguments list
+  for (int i = 0; i < Args.size(); i++) {
+    if (Args[i])
+      Arguments.push_back(ArgType(Args[i]->Type));
+  }
 
   FunctionType *FT =
   FunctionType::get(Type::getInt32Ty(TheContext), Arguments, false);
@@ -472,35 +554,19 @@ Function *PrototypeAST::codegen() {
 
   //set names for all arguments
   int i = 0;
-  for (auto &Arg : F->args())
-    Arg.setName(Args[i++]);
-
+  for (auto &Arg : F->args()) {
+    Arg.setName(Args.at(i++)->Name.lexeme);
+  }
 
   return F;
 }
 
-std::string PrototypeAST::to_string(int depth) const {
-  std::string arguments = "";
-  for (int i = 0; i < Args.size(); i++) {
-    std::string element = (Args[i]) ? Args[i]->to_string(0) : "null";
-    (i < Args.size() - 1) ? arguments += element + ", " : arguments += element;
-  }
-  std::string whitespace(depth, ' ');
-  return whitespace + Type.lexeme + " " + Name.lexeme + "(" + arguments + ")";
-}
 
 Function *FunctionAST::codegen() {
 
 }
 
-std::string FunctionAST::to_string(int depth) const {
-  // return a sting representation of this AST node
-  std::string whitespace(depth, ' ');
-  std::string prototype = (Proto) ? Proto->to_string(0) : "null";
-  std::string functionbody = (Body) ? Body->to_string(depth + 1) : "null";
-  return whitespace + prototype + "\n" + functionbody;
-}
-
+// need to deal with case where else does not exist as else_stmt is nullable
 Value *IfAST::codegen() {
   Function *TheFunction = Builder.GetInsertBlock()->getParent();
 
@@ -516,9 +582,15 @@ Value *IfAST::codegen() {
 
   BasicBlock *false_ = BasicBlock::Create(TheContext, "else");
 
-      BasicBlock *end_ = BasicBlock::Create(TheContext, "end");
+  BasicBlock *end_ = BasicBlock::Create(TheContext, "end");
 
-  Builder.CreateCondBr(comp, true_, false_);
+  if (!end_) {
+    Builder.CreateCondBr(comp, true_, end_);
+  } else { 
+    Builder.CreateCondBr(comp, true_, false_);
+  }
+
+
 
   // if true
   Builder.SetInsertPoint(true_);
@@ -537,15 +609,6 @@ Value *IfAST::codegen() {
   return nullptr;
 }
 
-std::string IfAST::to_string(int depth) const {
-  // return a sting representation of this AST node
-  std::string con = (Condition) ? Condition->to_string(0) : "null";
-  std::string ifBody = (IfBody) ? IfBody->to_string(depth + 1) : "null";
-  std::string elseBody = (ElseBody) ? ElseBody->to_string(depth + 1) : "null";
-  std::string whitespace(depth, ' ');
-  return whitespace + "if (" + con + ")\n " + ifBody + "\n" + whitespace +
-         "else \n" + whitespace + elseBody;
-}
 
 Value *WhileAST::codegen() {
   Function *TheFunction = Builder.GetInsertBlock()->getParent();
@@ -569,12 +632,7 @@ Value *WhileAST::codegen() {
 
   Body->codegen();
 
-  Value *endcond = Condition->codegen();
-
-  // evaluate condtion and choose either to loop again or exit
-  Value *endcomp = Builder.CreateICmpNE(
-      endcond, ConstantInt::get(TheContext, APInt(32, 0, false)), "whilecond");
-  Builder.CreateCondBr(endcomp, loop, exit);
+  Builder.SetInsertPoint(loop);
 
   // leave loop
   TheFunction->getBasicBlockList().push_back(exit);
@@ -584,33 +642,15 @@ Value *WhileAST::codegen() {
   return nullptr;
 }
 
-std::string WhileAST::to_string(int depth) const {
-  // return a sting representation of this AST node
-  std::string con = (Condition) ? Condition->to_string(0) : "null";
-  std::string whilebody = (Body) ? Body->to_string(depth + 1) : "null";
-  std::string whitespace(depth, ' ');
-  return whitespace + "while (" + con + ") \n" + whilebody;
-}
 
 Value *ReturnAST::codegen() { 
 
   return nullptr; 
 }
 
-std::string ReturnAST::to_string(int depth) const {
-  // return a sting representation of this AST node
-  std::string returnbody = (Body) ? Body->to_string(0) : "null";
-  std::string whitespace(depth, ' ');
-  return whitespace + "return " + returnbody;
-}
 
 Value *VarDeclAST::codegen() { return nullptr; }
 
-std::string VarDeclAST::to_string(int depth) const {
-  // return a sting representation of this AST node
-  std::string whitespace(depth, ' ');
-  return whitespace + Type.lexeme + " " + Name.lexeme;
-}
 
 Value *VarAssignAST::codegen() {
 
@@ -629,12 +669,10 @@ Value *VarAssignAST::codegen() {
   return Val;
 }
 
-std::string VarAssignAST::to_string(int depth) const {
-  // return a sting representation of this AST node
-  std::string expression = (Expr) ? Expr->to_string(depth + 1) : "null";
-  std::string whitespace(depth, ' ');
-  return whitespace + Name.lexeme + " assigned\n" + expression;
-}
+
+
+
+
 
 //===----------------------------------------------------------------------===//
 // Parser
@@ -829,7 +867,7 @@ std::unique_ptr<FunctionAST> fun_decl() {
 
   match(IDENT); // consume identifier
   match(LPAR);  // consumer identifier
-  std::vector<std::unique_ptr<ASTNode>> parameters = params();
+  std::vector<std::unique_ptr<VarDeclAST>> parameters = params();
 
   match(RPAR);
 
@@ -865,9 +903,9 @@ TOKEN type_spec() {
   return var_type();
 }
 
-std::vector<std::unique_ptr<ASTNode>> params() {
+std::vector<std::unique_ptr<VarDeclAST>> params() {
 
-  std::vector<std::unique_ptr<ASTNode>> parameter_list;
+  std::vector<std::unique_ptr<VarDeclAST>> parameter_list;
   switch (CurTok.type) {
   case (RPAR):
     // return empty list to signify no arguments
@@ -881,7 +919,9 @@ std::vector<std::unique_ptr<ASTNode>> params() {
   case (VOID_TOK):
     TOKEN tok = CurTok;
     match(VOID_TOK);
-    parameter_list.push_back(std::move(std::make_unique<VoidASTNode>(tok)));
+    auto void_ = std::make_unique<VarDeclAST>(tok, tok);
+    parameter_list.push_back(std::move(void_));
+    // parameter_list.push_back(std::move(std::make_unique<VoidASTNode>(tok)));
     return std::move(parameter_list);
   }
   // error
@@ -889,13 +929,13 @@ std::vector<std::unique_ptr<ASTNode>> params() {
   exit(0);
 }
 
-void param_list(std::vector<std::unique_ptr<ASTNode>> &list) {
+void param_list(std::vector<std::unique_ptr<VarDeclAST>> &list) {
   auto parameter = param();
   list.push_back(std::move(parameter));
   param_list_prime(list);
 }
 
-void param_list_prime(std::vector<std::unique_ptr<ASTNode>> &list) {
+void param_list_prime(std::vector<std::unique_ptr<VarDeclAST>> &list) {
   if (CurTok.type != RPAR) {
     match(COMMA);
     auto parameter = param();
@@ -906,7 +946,7 @@ void param_list_prime(std::vector<std::unique_ptr<ASTNode>> &list) {
   }
 }
 
-std::unique_ptr<ASTNode> param() {
+std::unique_ptr<VarDeclAST> param() {
   TOKEN type = var_type();
   TOKEN name = CurTok;
   match(IDENT);
@@ -1555,10 +1595,9 @@ int main(int argc, char **argv) {
   auto test = parser();
   // llvm::outs() << test << "\n";
   std::cout << test->to_string(0) << std::endl;
-
-  test->codegen();
   fprintf(stderr, "Parsing Finished\n");
 
+  test->codegen();
   //********************* Start printing final IR **************************
   // Print out all of the generated code into a file called output.ll
   auto Filename = "output.ll";
@@ -1569,7 +1608,7 @@ int main(int argc, char **argv) {
     errs() << "Could not open file: " << EC.message();
     return 1;
   }
-  // TheModule->print(errs(), nullptr); // print IR to terminal
+  TheModule->print(errs(), nullptr); // print IR to terminal
   TheModule->print(dest, nullptr);
   //********************* End printing final IR ****************************
 
