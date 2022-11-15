@@ -1,7 +1,5 @@
 #include "codegen.hpp"
 
-
-
 LLVMContext TheContext;
 IRBuilder<> Builder(TheContext);
 std::unique_ptr<Module> TheModule;
@@ -163,14 +161,11 @@ Function *PrototypeAST::codegen() {
       Arguments.push_back(getType(Args[i]->Type));
   }
 
-
   FunctionType *FT =
   FunctionType::get(getType(Type), Arguments, false);
 
-
   Function *F =
       Function::Create(FT, Function::ExternalLinkage, Name.lexeme, TheModule.get());
-
 
   //set names for all arguments
   int i = 0;

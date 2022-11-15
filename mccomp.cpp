@@ -4,14 +4,6 @@ using namespace llvm::sys;
 
 FILE *pFile;
 
-
-
-
-
-
-
-
-
 // //===----------------------------------------------------------------------===//
 // // AST Printer
 // //===----------------------------------------------------------------------===//
@@ -42,6 +34,7 @@ int main(int argc, char **argv) {
 
   // get the first token
   getNextToken();
+  
   // while (CurTok.type != EOF_TOK) {
   //   fprintf(stderr, "Token: %s with type %d\n", CurTok.lexeme.c_str(),
   //           CurTok.type);
