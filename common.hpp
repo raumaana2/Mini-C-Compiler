@@ -37,6 +37,9 @@
 #include <utility>
 #include <vector>
 
+using namespace llvm;
+using namespace llvm::sys;
+
 
 // The lexer returns one of these for known things.
 enum TOKEN_TYPE {
@@ -106,5 +109,29 @@ struct TOKEN {
   int lineNo;
   int columnNo;
 };
+
+
+
+extern FILE *pFile;
+
+//===----------------------------------------------------------------------===//
+// Lexer
+//===----------------------------------------------------------------------===//
+
+extern std::string IdentifierStr; // Filled in if IDENT
+extern int IntVal;                // Filled in if INT_LIT
+extern bool BoolVal;              // Filled in if BOOL_LIT
+extern float FloatVal;            // Filled in if FLOAT_LIT
+extern std::string StringVal;     // Filled in if String Literal
+extern int lineNo, columnNo;
+
+//===----------------------------------------------------------------------===//
+// Code Generation
+//===----------------------------------------------------------------------===//
+
+extern LLVMContext TheContext;
+extern IRBuilder<> Builder;
+extern std::unique_ptr<Module> TheModule;
+
 
 #endif
