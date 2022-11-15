@@ -271,17 +271,6 @@ static TOKEN gettok() {
   return returnTok(s, int(ThisChar));
 }
 
-static AllocaInst* CreateEntryBlockAlloca(Function *TheFunction, const std::string &VarName, llvm::Type* type) {
-  IRBuilder<> TmpB(&TheFunction->getEntryBlock(), TheFunction->getEntryBlock().begin());
-
-  return TmpB.CreateAlloca(type, 0, VarName.c_str());
-}
-
-
-
-static std::vector<std::map<std::string, AllocaInst*>> Scopes; 
-static std::map<std::string, GlobalVariable*> GlobalValues;
-
 //// AST Node to_string() 
 
 std::string ProgramAST::to_string(int depth) const {
@@ -422,6 +411,18 @@ std::string VarAssignAST::to_string(int depth) const {
 
 //// AST Codegen 
 
+
+static AllocaInst* CreateEntryBlockAlloca(Function *TheFunction, const std::string &VarName, llvm::Type* type) {
+  IRBuilder<> TmpB(&TheFunction->getEntryBlock(), TheFunction->getEntryBlock().begin());
+
+  return TmpB.CreateAlloca(type, 0, VarName.c_str());
+}
+
+static std::vector<std::map<std::string, AllocaInst*>> Scopes; 
+static std::map<std::string, GlobalVariable*> GlobalValues;
+
+
+
 Value *ProgramAST::codegen() {
   for (int i = 0; i < ExternList.size(); i++) {
     if (ExternList[i])
@@ -439,16 +440,17 @@ Value *ProgramAST::codegen() {
 }
 
 Value *BlockAST::codegen() {
+  Scopes.push_back(std::map<std::string, AllocaInst*>());
   for (int i = 0; i < LocalDecls.size(); i++) {
     if (LocalDecls[i])
       LocalDecls[i]->codegen();
   }
 
-  for (int i = 0; i < StmtList.size(); i++) {
-    if (StmtList[i])
-      StmtList[i]->codegen();
-  }
-
+  // for (int i = 0; i < StmtList.size(); i++) {
+  //   if (StmtList[i])
+  //     StmtList[i]->codegen();
+  // }
+  Scopes.pop_back();
   return nullptr;
 }
 
@@ -463,13 +465,14 @@ Value *LiteralASTNode::codegen() {
   case (BOOL_TOK):
 
     return ConstantInt::get(TheContext, APInt(std::stoi(Tok.lexeme), false));
-  // case (IDENT):
-  //   Value *V = NamedValues[Tok.lexeme];
+  case (IDENT):
+    std::string Name = Tok.lexeme;
+    AllocaInst *V = Scopes.back()[Name];
 
-  //   if (!V)
-  //     return nullptr;
+    if (!V)
+      return nullptr;
 
-  //   return Builder.CreateLoad(V, Tok.lexeme.c_str());
+    return Builder.CreateLoad(V->getAllocatedType(), V, Name.c_str());
     
   }
 
@@ -479,44 +482,45 @@ Value *LiteralASTNode::codegen() {
 
 Value *BinaryExprAST::codegen() {
 
-  switch (Op.type) {
-  case (PLUS):
-    return Builder.CreateAdd(LHS->codegen(), RHS->codegen(), "addtmp");
-  case (MINUS):
-    return Builder.CreateSub(LHS->codegen(), RHS->codegen(), "subtmp");
-  case (ASTERIX):
-    return Builder.CreateMul(LHS->codegen(), RHS->codegen(), "multmp");
-  case (DIV):
-    return Builder.CreateSDiv(LHS->codegen(), RHS->codegen(), "divtmp");
-  case (MOD):
-    return Builder.CreateSRem(LHS->codegen(), RHS->codegen(), "modtmp");
-  case (EQ):
-    return Builder.CreateICmpEQ(LHS->codegen(), RHS->codegen(), "eqtmp");
-  case (NE):
-    return Builder.CreateICmpNE(LHS->codegen(), RHS->codegen(), "netmp");
-  case (LE):
-    return Builder.CreateICmpULE(LHS->codegen(), RHS->codegen(), "uletmp");
-  case (LT):
-    return Builder.CreateICmpULT(LHS->codegen(), RHS->codegen(), "ulttmp");
-  case (GE):
-    return Builder.CreateICmpUGE(LHS->codegen(), RHS->codegen(), "ugetmp");
-  case (GT):
-    return Builder.CreateICmpUGT(LHS->codegen(), RHS->codegen(), "ugttmp");
-  }
+  // switch (Op.type) {
+  // case (PLUS):
+    
+  //   return Builder.CreateAdd(LHS->codegen(), RHS->codegen(), "addtmp");
+  // case (MINUS):
+  //   return Builder.CreateSub(LHS->codegen(), RHS->codegen(), "subtmp");
+  // case (ASTERIX):
+  //   return Builder.CreateMul(LHS->codegen(), RHS->codegen(), "multmp");
+  // case (DIV):
+  //   return Builder.CreateSDiv(LHS->codegen(), RHS->codegen(), "divtmp");
+  // case (MOD):
+  //   return Builder.CreateSRem(LHS->codegen(), RHS->codegen(), "modtmp");
+  // case (EQ):
+  //   return Builder.CreateICmpEQ(LHS->codegen(), RHS->codegen(), "eqtmp");
+  // case (NE):
+  //   return Builder.CreateICmpNE(LHS->codegen(), RHS->codegen(), "netmp");
+  // case (LE):
+  //   return Builder.CreateICmpULE(LHS->codegen(), RHS->codegen(), "uletmp");
+  // case (LT):
+  //   return Builder.CreateICmpULT(LHS->codegen(), RHS->codegen(), "ulttmp");
+  // case (GE):
+  //   return Builder.CreateICmpUGE(LHS->codegen(), RHS->codegen(), "ugetmp");
+  // case (GT):
+  //   return Builder.CreateICmpUGT(LHS->codegen(), RHS->codegen(), "ugttmp");
+  // }
 
-  return nullptr;
+  // return nullptr;
 }
 
 
 Value *UnaryExprAST::codegen() {
-  switch (Op.type) {
-  case (NOT):
-    return Builder.CreateNot(Expr->codegen(), "nottmp");
-  case (MINUS):
-    return Builder.CreateNeg(Expr->codegen(), "negtmp");
-  }
+  // switch (Op.type) {
+  // case (NOT):
+  //   return Builder.CreateNot(Expr->codegen(), "nottmp");
+  // case (MINUS):
+  //   return Builder.CreateNeg(Expr->codegen(), "negtmp");
+  // }
 
-  return nullptr;
+  // return nullptr;
 }
 
 
@@ -564,7 +568,6 @@ Function *PrototypeAST::codegen() {
     if (Args[i])
       Arguments.push_back(getType(Args[i]->Type));
   }
-  
 
 
   FunctionType *FT =
@@ -586,37 +589,40 @@ Function *PrototypeAST::codegen() {
 
 
 Function *FunctionAST::codegen() {
-  // Function *TheFunction = TheModule->getFunction(Proto->getName());
+  Scopes.push_back(std::map<std::string, AllocaInst*>());
+  Function *TheFunction = TheModule->getFunction(Proto->getName());
 
-  // if (!TheFunction)
-  //   TheFunction = Proto->codegen();
+  if (!TheFunction)
+    TheFunction = Proto->codegen();
 
-  // if (!TheFunction)
-  //   return nullptr;
+  if (!TheFunction)
+    return nullptr;
 
-  // BasicBlock *BB = BasicBlock::Create(TheContext, "entry", TheFunction);
-  // Builder.SetInsertPoint(BB);
+  BasicBlock *BB = BasicBlock::Create(TheContext, "entry", TheFunction);
+  Builder.SetInsertPoint(BB);
 
-  // NamedValues.clear();
+  //make alloca for each parameter
+  for (auto &Arg: TheFunction->args()) {
 
-  // for (auto &Arg: TheFunction->args()) {
-  //   AllocaInst *Alloca = CreateEntryBlockAlloca(TheFunction, Arg.getName().str());
-  //   Builder.CreateStore(&Arg, Alloca);
-  //   NamedValues[std::string(Arg.getName())] = Alloca;
-  // }
+    AllocaInst *Alloca = CreateEntryBlockAlloca(TheFunction, std::string(Arg.getName()), getType(Proto->getProtoType()));
+    Builder.CreateStore(&Arg, Alloca);
+    Scopes.back()[std::string(Arg.getName())] = Alloca;
+  }
 
-  // if (Value *RetVal = Body->codegen()) {
-  //   Builder.CreateRet(RetVal);
+  Value *RetVal = Body->codegen();
 
-  //   verifyFunction(*TheFunction);
+  if (RetVal) {
+    Builder.CreateRet(RetVal);
+
+    verifyFunction(*TheFunction);
 
 
-  //   return TheFunction;
+    return TheFunction;
 
-  // }
-
-  // TheFunction->eraseFromParent();
-
+  }
+  return TheFunction;
+  TheFunction->eraseFromParent();
+  Scopes.pop_back();
   return nullptr;
 
 }
@@ -698,19 +704,42 @@ Value *WhileAST::codegen() {
 
 
 Value *ReturnAST::codegen() { 
+  if (Body) {
+    //grab value from return body codegen
+    Value *V = Body->codegen();
 
+    return Builder.CreateRet(V);
+  } else {
+    return Builder.CreateRetVoid();
+  }
   return nullptr; 
 }
 
 
 Value *VarDeclAST::codegen() { 
+  //Global variables
+  if (Scopes.empty()) {
+    GlobalVariable* g = new GlobalVariable(
+      *(TheModule.get()),
+      getType(Type),
+      false,
+      GlobalValue::CommonLinkage,
+      Constant::getNullValue(getType(Type))
+    );
 
-  // Function *TheFunction = Builder.GetInsertBlock()->getParent();
+    GlobalValues[Name.lexeme] = g;
+    return nullptr;
+  }
 
-  // AllocaInst* x = 
-  //   CreateEntryBlockAlloca(TheFunction, "x");
+  // Local declarations
+  Function *TheFunction = Builder.GetInsertBlock()->getParent();
 
+  AllocaInst* Alloca =
+    CreateEntryBlockAlloca(TheFunction, Name.lexeme, getType(Type));
+  
+  Builder.CreateStore(Constant::getNullValue(getType(Type)), Alloca);
 
+  Scopes.back()[Name.lexeme] = Alloca;
   return nullptr;
 }
 
@@ -1017,7 +1046,7 @@ std::unique_ptr<VarDeclAST> param() {
   return std::move(parameter);
 }
 
-std::unique_ptr<ASTNode> block() {
+std::unique_ptr<BlockAST> block() {
   match(LBRA);
   std::vector<std::unique_ptr<ASTNode>> local_declaration_list;
   std::vector<std::unique_ptr<ASTNode>> statement_list;

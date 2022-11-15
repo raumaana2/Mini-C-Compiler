@@ -256,22 +256,23 @@ public:
     return Name.lexeme;
   }
 
-  std::string getProtoType() {
-    return Type.lexeme;
+  TOKEN getProtoType() {
+    return Type;
   }
 };
 
 // class for function signature and body
 class FunctionAST : public ASTNode {
   std::unique_ptr<PrototypeAST> Proto;
-  std::unique_ptr<ASTNode> Body;
+  std::unique_ptr<BlockAST> Body;
 
 public:
   FunctionAST(std::unique_ptr<PrototypeAST> proto,
-              std::unique_ptr<ASTNode> body)
+              std::unique_ptr<BlockAST> body)
       : Proto(std::move(proto)), Body(std::move(body)) {}
   Function *codegen() override;
   std::string to_string(int depth) const override;
+
 };
 
 // class for if statement structure
@@ -350,7 +351,7 @@ std::vector<std::unique_ptr<VarDeclAST>> params();
 void param_list(std::vector<std::unique_ptr<VarDeclAST>> &list);
 void param_list_prime(std::vector<std::unique_ptr<VarDeclAST>> &list);
 std::unique_ptr<VarDeclAST> param();
-std::unique_ptr<ASTNode> block();
+std::unique_ptr<BlockAST> block();
 void local_decls(std::vector<std::unique_ptr<ASTNode>> &list);
 void local_decls_prime(std::vector<std::unique_ptr<ASTNode>> &list);
 std::unique_ptr<ASTNode> local_decl();
