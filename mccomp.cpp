@@ -613,10 +613,7 @@ Function *FunctionAST::codegen() {
 
   if (RetVal) {
     Builder.CreateRet(RetVal);
-
     verifyFunction(*TheFunction);
-
-
     return TheFunction;
 
   }

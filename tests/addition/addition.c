@@ -3,8 +3,6 @@ extern int print_int(int X);
 extern float print_float();
 extern int print_more_ints(int X, int Y);
 
-int n;
-int m;
 
 
 int addition(int n, int m){
