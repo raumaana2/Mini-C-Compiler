@@ -273,7 +273,7 @@ Function *PrototypeAST::codegen() {
   
   //load correct types into prototype arguments list
   for (int i = 0; i < Args.size(); i++) {
-    if (Args[i])
+    if (Args[i] && Args[i]->Type.lexeme != "void")
       Arguments.push_back(getType(Args[i]->Type));
   }
 

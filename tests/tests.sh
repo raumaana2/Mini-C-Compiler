@@ -39,27 +39,27 @@ function validate {
 
 echo "Test *****"
 
-# cd tests/unary
-# pwd
-# rm -rf output.ll unary
-# "$COMP" ./unary.c
-# $CLANG driver.cpp output.ll -o unary
-# validate "./unary"
-
-# cd ../palindrome
-# pwd
-# rm -rf output.ll palindrome
-# "$COMP" ./palindrome.c
-# $CLANG driver.cpp output.ll -o palindrome
-# validate "./palindrome"
-
-
-cd tests/void
+cd tests/unary
 pwd
-rm -rf output.ll void
-"$COMP" ./void.c 
-$CLANG driver.cpp output.ll -o void
-validate "./void"
+rm -rf output.ll unary
+"$COMP" ./unary.c
+$CLANG driver.cpp output.ll -o unary
+validate "./unary"
+
+cd ../palindrome
+pwd
+rm -rf output.ll palindrome
+"$COMP" ./palindrome.c
+$CLANG driver.cpp output.ll -o palindrome
+validate "./palindrome"
+
+
+# cd tests/void
+# pwd
+# rm -rf output.ll void
+# "$COMP" ./void.c 
+# $CLANG driver.cpp output.ll -o void
+# validate "./void"
 
 
 

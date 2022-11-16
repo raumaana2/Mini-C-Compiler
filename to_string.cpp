@@ -111,7 +111,7 @@ std::string WhileAST::to_string(int depth) const {
 
 std::string ReturnAST::to_string(int depth) const {
   // return a sting representation of this AST node
-  std::string returnbody = (Body) ? Body->to_string(0) : "null";
+  std::string returnbody = (Body) ? Body->to_string(0) : " ";
   std::string whitespace(depth, ' ');
   return whitespace + "return " + returnbody;
 }
