@@ -15,6 +15,8 @@ module load GCC/9.2.0
 
 DIR="$(pwd)"
 
+clear
+
 ### Build mccomp compiler
 echo "Cleanup *****"
 rm -rf ./mccomp

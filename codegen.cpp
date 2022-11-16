@@ -27,11 +27,11 @@ Value *Casting(Type *VarType, Value *NewVal) {
   //convert expression into boolean
   } else if (VarType->isIntegerTy(1)) {
     if (NewVal->getType()->isIntegerTy(32)) {
-      return Builder.CreateIntCast(NewVal, Type::getInt32Ty(TheContext), false);
+      return Builder.CreateIntCast(NewVal, Type::getInt1Ty(TheContext), false);
     } else if (NewVal->getType()->isIntegerTy(1)) {
       return NewVal;
     } else if (NewVal->getType()->isFloatTy()) {
-      return Builder.CreateUIToFP(NewVal, Type::getInt32Ty(TheContext));
+      return Builder.CreateUIToFP(NewVal, Type::getInt1Ty(TheContext));
     }
   //convert expression int floating point
   } else if (VarType->isFloatTy()) {
@@ -43,6 +43,8 @@ Value *Casting(Type *VarType, Value *NewVal) {
       return NewVal;
     }
   }
+
+  return nullptr;
 }
 
 std::vector<std::map<std::string, AllocaInst*>> Scopes; 
@@ -83,22 +85,30 @@ Value *BlockAST::codegen() {
 
 Value *LiteralASTNode::codegen() {
   switch (Tok.type) {
-  case (INT_TOK):
-    return ConstantInt::get(TheContext, APInt(std::stoi(Tok.lexeme), false));
-  case (FLOAT_TOK):
+  case (INT_LIT):
+    return ConstantInt::get(TheContext, APInt(32, std::stoi(Tok.lexeme), false));
+  case (FLOAT_LIT):
     return ConstantFP::get(TheContext, APFloat(std::stof(Tok.lexeme)));
 
-  case (BOOL_TOK):
+  case (BOOL_LIT):
 
     return ConstantInt::get(TheContext, APInt(std::stoi(Tok.lexeme), false));
   case (IDENT):
-    std::string Name = Tok.lexeme;
-    AllocaInst *V = Scopes.back()[Name];
+    
+    AllocaInst *V; 
+
+    // also do global case
+    for (int i = Scopes.size() - 1; i >= 0; i--) {
+      if (Scopes[i].count(Tok.lexeme) > 0) {
+        V = Scopes[i][Tok.lexeme];
+        break;
+      } 
+    }
 
     if (!V)
       return nullptr;
-
-    return Builder.CreateLoad(V->getAllocatedType(), V, Name.c_str());
+    
+    return Builder.CreateLoad(V->getAllocatedType(), V);
     
   }
 
@@ -107,8 +117,12 @@ Value *LiteralASTNode::codegen() {
 
 
 Value *BinaryExprAST::codegen() {
+
+
   Value *left = LHS->codegen();
   Value *right = RHS->codegen();
+
+
 
   if (!left || !right ) {
     return nullptr;
@@ -163,6 +177,7 @@ Value *BinaryExprAST::codegen() {
       right = Casting(Type::getFloatTy(TheContext), right);
       return Builder.CreateFCmpOEQ(left, right, "feqtmp");
     } 
+
     // otherwise there are no floating points so we do integer add which casts bools to ints
     return Builder.CreateICmpEQ(left, right, "ieqtmp");
   case (NE):
@@ -206,7 +221,6 @@ Value *BinaryExprAST::codegen() {
     // otherwise there are no floating points so we do integer add which casts bools to ints
     return Builder.CreateICmpUGT(left, right, "igtmp");
   }
-
   return nullptr;
 }
 
@@ -262,6 +276,8 @@ Function *PrototypeAST::codegen() {
  
   std::vector<llvm::Type*> Arguments;
 
+
+  
   //load correct types into prototype arguments list
   for (int i = 0; i < Args.size(); i++) {
     if (Args[i])
@@ -274,7 +290,7 @@ Function *PrototypeAST::codegen() {
   Function *F =
       Function::Create(FT, Function::ExternalLinkage, Name.lexeme, TheModule.get());
 
-  //set names for all arguments
+  //set names for all arguments 
   int i = 0;
   for (auto &Arg : F->args()) {
     Arg.setName(Args.at(i++)->Name.lexeme);
@@ -302,9 +318,14 @@ Function *FunctionAST::codegen() {
 
     AllocaInst *Alloca = CreateEntryBlockAlloca(TheFunction, std::string(Arg.getName()), getType(Proto->getProtoType()));
     Builder.CreateStore(&Arg, Alloca);
-    Scopes.back()[std::string(Arg.getName())] = Alloca;
-  }
 
+    Scopes.back()[std::string(Arg.getName())] = Alloca;
+
+    
+  }
+  
+
+  
   Value *RetVal = Body->codegen();
 
   if (RetVal) {
@@ -323,21 +344,20 @@ Function *FunctionAST::codegen() {
 // code generation for IfElse/If statments 
 Value *IfAST::codegen() {
   Function *TheFunction = Builder.GetInsertBlock()->getParent();
-
+  
   // generate condition
   Value *cond = Condition->codegen();
-
   // convert condition to bool by comparing != 0
+  std::cout << cond->getType()->isIntegerTy(1) << std::endl;
   Value *comp = Builder.CreateICmpNE(
-      cond, ConstantInt::get(TheContext, APInt(32, 0, false)), "ifcond");
-
+      cond, ConstantInt::get(TheContext, APInt(1, 0, false)), "ifcond");
+  std::cout << "if this dont print this busted" << std::endl;
   // create blocks
   BasicBlock *true_ = BasicBlock::Create(TheContext, "then", TheFunction);
 
   BasicBlock *false_ = BasicBlock::Create(TheContext, "else");
 
   BasicBlock *end_ = BasicBlock::Create(TheContext, "end");
-
   Scopes.push_back(std::map<std::string, AllocaInst*>());
   // check if end is empty and if so, create condition branch with only true_ and end_
   if (!end_) {
@@ -378,7 +398,7 @@ Value *WhileAST::codegen() {
   Value *cond = Condition->codegen();
 
   Value *comp = Builder.CreateICmpNE(
-      cond, ConstantInt::get(TheContext, APInt(32, 0, false)), "whilecond");
+      cond, ConstantInt::get(TheContext, APInt(1, 0, false)), "whilecond");
   Builder.CreateCondBr(comp, loop, exit);
   Scopes.push_back(std::map<std::string, AllocaInst*>());
   // work inside body
@@ -444,19 +464,18 @@ Value *VarDeclAST::codegen() {
 
 
 Value *VarAssignAST::codegen() {
-
   Value *Val = Expr->codegen();
 
   if (!Val)
     return nullptr;
-  //if global
+
 
   
   for (int i = Scopes.size() - 1; i >= 0; i--) {
     if (Scopes[i].count(Name.lexeme) > 0) {
       Function *TheFunction = Builder.GetInsertBlock()->getParent();
       AllocaInst* Alloca = Scopes[i][Name.lexeme];
-      Value *CastedVal = Casting(Alloca->getType(), Val);
+      Value *CastedVal = Casting(Alloca->getAllocatedType(), Val);
       Builder.CreateStore(CastedVal, Alloca);
       Scopes[i][Name.lexeme] = Alloca;
     } 
