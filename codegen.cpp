@@ -1,4 +1,5 @@
 #include "codegen.hpp"
+#include <llvm/IR/GlobalVariable.h>
 
 using namespace llvm;
 using namespace llvm::sys;
@@ -20,25 +21,25 @@ Value *Casting(Type *VarType, Value *NewVal) {
     if (NewVal->getType()->isIntegerTy(32)) {
       return NewVal;
     } else if (NewVal->getType()->isIntegerTy(1)) {
-      return Builder.CreateBitCast(NewVal, Type::getInt32Ty(TheContext));
+      return Builder.CreateIntCast(NewVal, Type::getInt32Ty(TheContext), false, "btoi32");
     } else if (NewVal->getType()->isFloatTy()) {
-      return Builder.CreateUIToFP(NewVal, Type::getInt32Ty(TheContext));
+      return Builder.CreateFPToUI(NewVal, Type::getInt32Ty(TheContext), "ftoi32");
     } 
   //convert expression into boolean
   } else if (VarType->isIntegerTy(1)) {
     if (NewVal->getType()->isIntegerTy(32)) {
-      return Builder.CreateIntCast(NewVal, Type::getInt1Ty(TheContext), false);
+      return Builder.CreateBitCast(NewVal, Type::getInt1Ty(TheContext), "i32tob");
     } else if (NewVal->getType()->isIntegerTy(1)) {
       return NewVal;
     } else if (NewVal->getType()->isFloatTy()) {
-      return Builder.CreateUIToFP(NewVal, Type::getInt1Ty(TheContext));
+      return Builder.CreateFPToUI(NewVal, Type::getInt1Ty(TheContext), "ftob");
     }
   //convert expression int floating point
   } else if (VarType->isFloatTy()) {
     if (NewVal->getType()->isIntegerTy(32)) {
-      return Builder.CreateUIToFP(NewVal, Type::getInt32Ty(TheContext));
-    } else if (NewVal->getType()->isIntegerTy(32)) {
-      return Builder.CreateUIToFP(NewVal, Type::getInt32Ty(TheContext));
+      return Builder.CreateUIToFP(NewVal, Type::getFloatTy(TheContext), "i32tof");
+    } else if (NewVal->getType()->isIntegerTy(1)) {
+      return Builder.CreateUIToFP(NewVal, Type::getFloatTy(TheContext), "i1tof");
     } else if (NewVal->getType()->isFloatTy()) {
       return NewVal;
     }
@@ -90,9 +91,11 @@ Value *LiteralASTNode::codegen() {
   case (FLOAT_LIT):
     return ConstantFP::get(TheContext, APFloat(std::stof(Tok.lexeme)));
 
-  case (BOOL_LIT):
+  case (BOOL_LIT): {
 
-    return ConstantInt::get(TheContext, APInt(std::stoi(Tok.lexeme), false));
+    int bool_ = (Tok.lexeme == "true") ? 1 : 0;
+    return ConstantInt::get(TheContext, APInt(1, bool_, false));
+  }
   case (IDENT):
     
     AllocaInst *V; 
@@ -105,10 +108,16 @@ Value *LiteralASTNode::codegen() {
       } 
     }
 
-    if (!V)
-      return nullptr;
+    if (!V) {
+
+      GlobalVariable *G = GlobalVariables[Tok.lexeme];
+      if (!G)
+        return nullptr;
+      return Builder.CreateLoad(G->getValueType(), G, Tok.lexeme);
+    } else { 
+      return Builder.CreateLoad(V->getAllocatedType(), V, Tok.lexeme);
+    }
     
-    return Builder.CreateLoad(V->getAllocatedType(), V);
     
   }
 
@@ -172,65 +181,48 @@ Value *BinaryExprAST::codegen() {
     // otherwise there are no floating points so we do integer add which casts bools to ints
     return Builder.CreateURem(left, right, "imodtmp");
   case (EQ):
-    if (left->getType()->isFloatTy() || right->getType()->isFloatTy()) {
       left = Casting(Type::getFloatTy(TheContext), left);
       right = Casting(Type::getFloatTy(TheContext), right);
       return Builder.CreateFCmpOEQ(left, right, "feqtmp");
-    } 
-
-    // otherwise there are no floating points so we do integer add which casts bools to ints
     return Builder.CreateICmpEQ(left, right, "ieqtmp");
   case (NE):
-    if (left->getType()->isFloatTy() || right->getType()->isFloatTy()) {
       left = Casting(Type::getFloatTy(TheContext), left);
       right = Casting(Type::getFloatTy(TheContext), right);
       return Builder.CreateFCmpONE(left, right, "fneqtmp");
-    } 
-    // otherwise there are no floating points so we do integer add which casts bools to ints
-    return Builder.CreateICmpNE(left, right, "ineqtmp");
   case (LE):
-    if (left->getType()->isFloatTy() || right->getType()->isFloatTy()) {
       left = Casting(Type::getFloatTy(TheContext), left);
       right = Casting(Type::getFloatTy(TheContext), right);
       return Builder.CreateFCmpOLE(left, right, "fletmp");
-    } 
-    // otherwise there are no floating points so we do integer add which casts bools to ints
-    return Builder.CreateICmpULE(left, right, "iletmp");
   case (LT):
-    if (left->getType()->isFloatTy() || right->getType()->isFloatTy()) {
       left = Casting(Type::getFloatTy(TheContext), left);
       right = Casting(Type::getFloatTy(TheContext), right);
       return Builder.CreateFCmpOLT(left, right, "flttmp");
-    } 
-    // otherwise there are no floating points so we do integer add which casts bools to ints
-    return Builder.CreateICmpULT(left, right, "ilttmp");
   case (GE):
-    if (left->getType()->isFloatTy() || right->getType()->isFloatTy()) {
       left = Casting(Type::getFloatTy(TheContext), left);
       right = Casting(Type::getFloatTy(TheContext), right);
       return Builder.CreateFCmpOGE(left, right, "fgetmp");
-    } 
-    // otherwise there are no floating points so we do integer add which casts bools to ints
-    return Builder.CreateICmpUGE(left, right, "igetmp");
   case (GT):
-    if (left->getType()->isFloatTy() || right->getType()->isFloatTy()) {
       left = Casting(Type::getFloatTy(TheContext), left);
       right = Casting(Type::getFloatTy(TheContext), right);
       return Builder.CreateFCmpOGT(left, right, "ffttmp");
-    } 
-    // otherwise there are no floating points so we do integer add which casts bools to ints
-    return Builder.CreateICmpUGT(left, right, "igtmp");
   }
   return nullptr;
 }
 
 
 Value *UnaryExprAST::codegen() {
+  Value *V = Expr->codegen();
+
+  if (!V)
+    return nullptr;
+
+  
   switch (Op.type) {
   case (NOT):
-    return Builder.CreateNot(Expr->codegen(), "nottmp");
+    return Builder.CreateNot(V, "nottmp");
   case (MINUS):
-    return Builder.CreateNeg(Expr->codegen(), "negtmp");
+    V = Casting(Type::getFloatTy(TheContext), V);
+    return Builder.CreateFNeg(V, "negtmp");
   }
 
   return nullptr;
@@ -265,6 +257,7 @@ llvm::Type *getType(TOKEN t) {
     case (BOOL_TOK):
       return Type::getInt1Ty(TheContext);
     case (VOID_TOK):
+      std::cout << "at void here" << std::endl;
       return Type::getVoidTy(TheContext);
   }
 
@@ -337,6 +330,10 @@ Function *FunctionAST::codegen() {
   return TheFunction;
   TheFunction->eraseFromParent();
   Scopes.pop_back();
+
+
+  std::cout << "can i make here" << std::endl;
+
   return nullptr;
 
 }
@@ -348,10 +345,8 @@ Value *IfAST::codegen() {
   // generate condition
   Value *cond = Condition->codegen();
   // convert condition to bool by comparing != 0
-  std::cout << cond->getType()->isIntegerTy(1) << std::endl;
   Value *comp = Builder.CreateICmpNE(
       cond, ConstantInt::get(TheContext, APInt(1, 0, false)), "ifcond");
-  std::cout << "if this dont print this busted" << std::endl;
   // create blocks
   BasicBlock *true_ = BasicBlock::Create(TheContext, "then", TheFunction);
 
@@ -375,45 +370,58 @@ Value *IfAST::codegen() {
   TheFunction->getBasicBlockList().push_back(false_);
   Builder.SetInsertPoint(false_);
   ElseBody->codegen();
-  Scopes.pop_back();
   TheFunction->getBasicBlockList().push_back(end_);
   Builder.CreateBr(end_);
   Builder.SetInsertPoint(end_);
 
+  Scopes.pop_back();
   return nullptr;
 }
 
 
 Value *WhileAST::codegen() {
+  Scopes.push_back(std::map<std::string, AllocaInst*>());
+
   Function *TheFunction = Builder.GetInsertBlock()->getParent();
+  //condition block
+  BasicBlock *before = BasicBlock::Create(TheContext, "before", TheFunction);
 
   // loop block
-  BasicBlock *loop = BasicBlock::Create(TheContext, "loop", TheFunction);
+  BasicBlock *loop = BasicBlock::Create(TheContext, "loop");
 
   // block afer loop
   BasicBlock *exit = BasicBlock::Create(TheContext, "end");
 
+  Builder.CreateBr(before);
+  Builder.SetInsertPoint(before);
   // generate condition and generate branch which decides to loop or exit
   // based off of condtion
   Value *cond = Condition->codegen();
 
+
   Value *comp = Builder.CreateICmpNE(
       cond, ConstantInt::get(TheContext, APInt(1, 0, false)), "whilecond");
+  
+
+  TheFunction->getBasicBlockList().push_back(loop);
+
   Builder.CreateCondBr(comp, loop, exit);
-  Scopes.push_back(std::map<std::string, AllocaInst*>());
-  // work inside body
+
   Builder.SetInsertPoint(loop);
+  
+  // work inside body
 
   Body->codegen();
 
-  Builder.SetInsertPoint(loop);
+  Builder.CreateBr(before);
 
-  // leave loop
-  Scopes.pop_back();
+  // exit branch
   TheFunction->getBasicBlockList().push_back(exit);
   Builder.CreateBr(exit);
   Builder.SetInsertPoint(exit);
 
+  
+  Scopes.pop_back();
   return nullptr;
 }
 
@@ -423,7 +431,6 @@ Value *ReturnAST::codegen() {
     //grab value from return body codegen
     Value *V = Body->codegen();
     // need some code to compare type of body to type of function 
-
     return Builder.CreateRet(V);
   } else {
     return Builder.CreateRetVoid();
@@ -469,8 +476,8 @@ Value *VarAssignAST::codegen() {
   if (!Val)
     return nullptr;
 
-
   
+
   for (int i = Scopes.size() - 1; i >= 0; i--) {
     if (Scopes[i].count(Name.lexeme) > 0) {
       Function *TheFunction = Builder.GetInsertBlock()->getParent();
@@ -487,7 +494,7 @@ Value *VarAssignAST::codegen() {
 
     Value *CastedVal = Casting(gAlloca->getValueType(),  Val);
 
-    Builder.CreateStore(gAlloca, CastedVal);
+    Builder.CreateStore(CastedVal, gAlloca);
 
     GlobalVariables[Name.lexeme] = gAlloca;
   }

@@ -8,13 +8,13 @@ float unary(int n, float m){
        
         sum = 0.0;
 	
-	result = n + m;  
+	result = n + m; 
 	print_float(result);
-        sum = sum + result;
+        sum = sum + result; 
 
-	result = n + -m;  
+	result = n + -m; 
 	print_float(result);
-        sum = sum + result;
+        sum = sum + result; 
 
 	result = n + --m;  
 	print_float(result);
