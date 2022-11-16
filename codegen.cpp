@@ -1,5 +1,9 @@
 #include "codegen.hpp"
 
+using namespace llvm;
+using namespace llvm::sys;
+
+
 LLVMContext TheContext;
 IRBuilder<> Builder(TheContext);
 std::unique_ptr<Module> TheModule;
@@ -10,8 +14,39 @@ AllocaInst* CreateEntryBlockAlloca(Function *TheFunction, const std::string &Var
   return TmpB.CreateAlloca(type, 0, VarName.c_str());
 }
 
+Value *Casting(Type *VarType, Value *NewVal) {
+  //create expression into 32 bit integer
+  if (VarType->isIntegerTy(32)) {
+    if (NewVal->getType()->isIntegerTy(32)) {
+      return NewVal;
+    } else if (NewVal->getType()->isIntegerTy(1)) {
+      return Builder.CreateBitCast(NewVal, Type::getInt32Ty(TheContext));
+    } else if (NewVal->getType()->isFloatTy()) {
+      return Builder.CreateUIToFP(NewVal, Type::getInt32Ty(TheContext));
+    } 
+  //convert expression into boolean
+  } else if (VarType->isIntegerTy(1)) {
+    if (NewVal->getType()->isIntegerTy(32)) {
+      return Builder.CreateIntCast(NewVal, Type::getInt32Ty(TheContext), false);
+    } else if (NewVal->getType()->isIntegerTy(1)) {
+      return NewVal;
+    } else if (NewVal->getType()->isFloatTy()) {
+      return Builder.CreateUIToFP(NewVal, Type::getInt32Ty(TheContext));
+    }
+  //convert expression int floating point
+  } else if (VarType->isFloatTy()) {
+    if (NewVal->getType()->isIntegerTy(32)) {
+      return Builder.CreateUIToFP(NewVal, Type::getInt32Ty(TheContext));
+    } else if (NewVal->getType()->isIntegerTy(32)) {
+      return Builder.CreateUIToFP(NewVal, Type::getInt32Ty(TheContext));
+    } else if (NewVal->getType()->isFloatTy()) {
+      return NewVal;
+    }
+  }
+}
+
 std::vector<std::map<std::string, AllocaInst*>> Scopes; 
-std::map<std::string, GlobalVariable*> GlobalValues;
+std::map<std::string, GlobalVariable*> GlobalVariables;
 
 
 
@@ -38,10 +73,10 @@ Value *BlockAST::codegen() {
       LocalDecls[i]->codegen();
   }
 
-  // for (int i = 0; i < StmtList.size(); i++) {
-  //   if (StmtList[i])
-  //     StmtList[i]->codegen();
-  // }
+  for (int i = 0; i < StmtList.size(); i++) {
+    if (StmtList[i])
+      StmtList[i]->codegen();
+  }
   Scopes.pop_back();
   return nullptr;
 }
@@ -49,7 +84,6 @@ Value *BlockAST::codegen() {
 Value *LiteralASTNode::codegen() {
   switch (Tok.type) {
   case (INT_TOK):
-    std::cout << Tok.lexeme << std::endl;
     return ConstantInt::get(TheContext, APInt(std::stoi(Tok.lexeme), false));
   case (FLOAT_TOK):
     return ConstantFP::get(TheContext, APFloat(std::stof(Tok.lexeme)));
@@ -73,46 +107,119 @@ Value *LiteralASTNode::codegen() {
 
 
 Value *BinaryExprAST::codegen() {
+  Value *left = LHS->codegen();
+  Value *right = RHS->codegen();
 
-  // switch (Op.type) {
-  // case (PLUS):
+  if (!left || !right ) {
+    return nullptr;
+  }
+  switch (Op.type) {
+  case (PLUS):
+    // if either are floating point, we want to convert both to floating point
+    if (left->getType()->isFloatTy() || right->getType()->isFloatTy()) {
+      left = Casting(Type::getFloatTy(TheContext), left);
+      right = Casting(Type::getFloatTy(TheContext), right);
+      return Builder.CreateFAdd(left, right, "faddtmp");
+    } 
+    // otherwise there are no floating points so we do integer add which casts bools to ints
+    return Builder.CreateAdd(left, right,"iaddtmp");
     
-  //   return Builder.CreateAdd(LHS->codegen(), RHS->codegen(), "addtmp");
-  // case (MINUS):
-  //   return Builder.CreateSub(LHS->codegen(), RHS->codegen(), "subtmp");
-  // case (ASTERIX):
-  //   return Builder.CreateMul(LHS->codegen(), RHS->codegen(), "multmp");
-  // case (DIV):
-  //   return Builder.CreateSDiv(LHS->codegen(), RHS->codegen(), "divtmp");
-  // case (MOD):
-  //   return Builder.CreateSRem(LHS->codegen(), RHS->codegen(), "modtmp");
-  // case (EQ):
-  //   return Builder.CreateICmpEQ(LHS->codegen(), RHS->codegen(), "eqtmp");
-  // case (NE):
-  //   return Builder.CreateICmpNE(LHS->codegen(), RHS->codegen(), "netmp");
-  // case (LE):
-  //   return Builder.CreateICmpULE(LHS->codegen(), RHS->codegen(), "uletmp");
-  // case (LT):
-  //   return Builder.CreateICmpULT(LHS->codegen(), RHS->codegen(), "ulttmp");
-  // case (GE):
-  //   return Builder.CreateICmpUGE(LHS->codegen(), RHS->codegen(), "ugetmp");
-  // case (GT):
-  //   return Builder.CreateICmpUGT(LHS->codegen(), RHS->codegen(), "ugttmp");
-  // }
+  case (MINUS):
+    // if either are floating point, we want to convert both to floating point
+    if (left->getType()->isFloatTy() || right->getType()->isFloatTy()) {
+      left = Casting(Type::getFloatTy(TheContext), left);
+      right = Casting(Type::getFloatTy(TheContext), right);
+      return Builder.CreateFSub(left, right, "fsubtmp");
+    } 
+    // otherwise there are no floating points so we do integer add which casts bools to ints
+    return Builder.CreateSub(left, right,"isubtmp");
+  case (ASTERIX):
+    if (left->getType()->isFloatTy() || right->getType()->isFloatTy()) {
+      left = Casting(Type::getFloatTy(TheContext), left);
+      right = Casting(Type::getFloatTy(TheContext), right);
+      return Builder.CreateFMul(left, right, "fmultmp");
+    } 
+    // otherwise there are no floating points so we do integer add which casts bools to ints
+    return Builder.CreateMul(left, right,"imultmp");
+  case (DIV):
+    if (left->getType()->isFloatTy() || right->getType()->isFloatTy()) {
+      left = Casting(Type::getFloatTy(TheContext), left);
+      right = Casting(Type::getFloatTy(TheContext), right);
+      return Builder.CreateFDiv(left, right, "fdivtmp");
+    } 
+    // otherwise there are no floating points so we do integer add which casts bools to ints
+    return Builder.CreateUDiv(left, right,"idivtmp");
+  case (MOD):
+    if (left->getType()->isFloatTy() || right->getType()->isFloatTy()) {
+      left = Casting(Type::getFloatTy(TheContext), left);
+      right = Casting(Type::getFloatTy(TheContext), right);
+      return Builder.CreateFRem(left, right, "fmodtmp");
+    } 
+    // otherwise there are no floating points so we do integer add which casts bools to ints
+    return Builder.CreateURem(left, right, "imodtmp");
+  case (EQ):
+    if (left->getType()->isFloatTy() || right->getType()->isFloatTy()) {
+      left = Casting(Type::getFloatTy(TheContext), left);
+      right = Casting(Type::getFloatTy(TheContext), right);
+      return Builder.CreateFCmpOEQ(left, right, "feqtmp");
+    } 
+    // otherwise there are no floating points so we do integer add which casts bools to ints
+    return Builder.CreateICmpEQ(left, right, "ieqtmp");
+  case (NE):
+    if (left->getType()->isFloatTy() || right->getType()->isFloatTy()) {
+      left = Casting(Type::getFloatTy(TheContext), left);
+      right = Casting(Type::getFloatTy(TheContext), right);
+      return Builder.CreateFCmpONE(left, right, "fneqtmp");
+    } 
+    // otherwise there are no floating points so we do integer add which casts bools to ints
+    return Builder.CreateICmpNE(left, right, "ineqtmp");
+  case (LE):
+    if (left->getType()->isFloatTy() || right->getType()->isFloatTy()) {
+      left = Casting(Type::getFloatTy(TheContext), left);
+      right = Casting(Type::getFloatTy(TheContext), right);
+      return Builder.CreateFCmpOLE(left, right, "fletmp");
+    } 
+    // otherwise there are no floating points so we do integer add which casts bools to ints
+    return Builder.CreateICmpULE(left, right, "iletmp");
+  case (LT):
+    if (left->getType()->isFloatTy() || right->getType()->isFloatTy()) {
+      left = Casting(Type::getFloatTy(TheContext), left);
+      right = Casting(Type::getFloatTy(TheContext), right);
+      return Builder.CreateFCmpOLT(left, right, "flttmp");
+    } 
+    // otherwise there are no floating points so we do integer add which casts bools to ints
+    return Builder.CreateICmpULT(left, right, "ilttmp");
+  case (GE):
+    if (left->getType()->isFloatTy() || right->getType()->isFloatTy()) {
+      left = Casting(Type::getFloatTy(TheContext), left);
+      right = Casting(Type::getFloatTy(TheContext), right);
+      return Builder.CreateFCmpOGE(left, right, "fgetmp");
+    } 
+    // otherwise there are no floating points so we do integer add which casts bools to ints
+    return Builder.CreateICmpUGE(left, right, "igetmp");
+  case (GT):
+    if (left->getType()->isFloatTy() || right->getType()->isFloatTy()) {
+      left = Casting(Type::getFloatTy(TheContext), left);
+      right = Casting(Type::getFloatTy(TheContext), right);
+      return Builder.CreateFCmpOGT(left, right, "ffttmp");
+    } 
+    // otherwise there are no floating points so we do integer add which casts bools to ints
+    return Builder.CreateICmpUGT(left, right, "igtmp");
+  }
 
-  // return nullptr;
+  return nullptr;
 }
 
 
 Value *UnaryExprAST::codegen() {
-  // switch (Op.type) {
-  // case (NOT):
-  //   return Builder.CreateNot(Expr->codegen(), "nottmp");
-  // case (MINUS):
-  //   return Builder.CreateNeg(Expr->codegen(), "negtmp");
-  // }
+  switch (Op.type) {
+  case (NOT):
+    return Builder.CreateNot(Expr->codegen(), "nottmp");
+  case (MINUS):
+    return Builder.CreateNeg(Expr->codegen(), "negtmp");
+  }
 
-  // return nullptr;
+  return nullptr;
 }
 
 
@@ -231,6 +338,7 @@ Value *IfAST::codegen() {
 
   BasicBlock *end_ = BasicBlock::Create(TheContext, "end");
 
+  Scopes.push_back(std::map<std::string, AllocaInst*>());
   // check if end is empty and if so, create condition branch with only true_ and end_
   if (!end_) {
     Builder.CreateCondBr(comp, true_, end_);
@@ -247,7 +355,7 @@ Value *IfAST::codegen() {
   TheFunction->getBasicBlockList().push_back(false_);
   Builder.SetInsertPoint(false_);
   ElseBody->codegen();
-
+  Scopes.pop_back();
   TheFunction->getBasicBlockList().push_back(end_);
   Builder.CreateBr(end_);
   Builder.SetInsertPoint(end_);
@@ -272,7 +380,7 @@ Value *WhileAST::codegen() {
   Value *comp = Builder.CreateICmpNE(
       cond, ConstantInt::get(TheContext, APInt(32, 0, false)), "whilecond");
   Builder.CreateCondBr(comp, loop, exit);
-
+  Scopes.push_back(std::map<std::string, AllocaInst*>());
   // work inside body
   Builder.SetInsertPoint(loop);
 
@@ -281,6 +389,7 @@ Value *WhileAST::codegen() {
   Builder.SetInsertPoint(loop);
 
   // leave loop
+  Scopes.pop_back();
   TheFunction->getBasicBlockList().push_back(exit);
   Builder.CreateBr(exit);
   Builder.SetInsertPoint(exit);
@@ -293,6 +402,7 @@ Value *ReturnAST::codegen() {
   if (Body) {
     //grab value from return body codegen
     Value *V = Body->codegen();
+    // need some code to compare type of body to type of function 
 
     return Builder.CreateRet(V);
   } else {
@@ -313,7 +423,7 @@ Value *VarDeclAST::codegen() {
       Constant::getNullValue(getType(Type))
     );
 
-    GlobalValues[Name.lexeme] = g;
+    GlobalVariables[Name.lexeme] = g;
     return nullptr;
   }
 
@@ -330,20 +440,40 @@ Value *VarDeclAST::codegen() {
 }
 
 
+
+
+
 Value *VarAssignAST::codegen() {
 
-  // Value *Val = Expr->codegen();
+  Value *Val = Expr->codegen();
 
-  // if (!Val)
-  //   return nullptr;
+  if (!Val)
+    return nullptr;
+  //if global
 
-  // Value *Variable = NamedValues[Name.lexeme];
-
-  // if (!Variable)
-  //   return nullptr;
-
-  // Builder.CreateStore(Val, Variable);
   
-  // return Val;
+  for (int i = Scopes.size() - 1; i >= 0; i--) {
+    if (Scopes[i].count(Name.lexeme) > 0) {
+      Function *TheFunction = Builder.GetInsertBlock()->getParent();
+      AllocaInst* Alloca = Scopes[i][Name.lexeme];
+      Value *CastedVal = Casting(Alloca->getType(), Val);
+      Builder.CreateStore(CastedVal, Alloca);
+      Scopes[i][Name.lexeme] = Alloca;
+    } 
+  }
+
+  if (GlobalVariables.count(Name.lexeme) > 0) {
+    
+    GlobalVariable* gAlloca = GlobalVariables.at(Name.lexeme);
+
+    Value *CastedVal = Casting(gAlloca->getValueType(),  Val);
+
+    Builder.CreateStore(gAlloca, CastedVal);
+
+    GlobalVariables[Name.lexeme] = gAlloca;
+  }
+
+  
+  return nullptr;
 }
 
