@@ -23,7 +23,7 @@ Value *Casting(Type *VarType, Value *NewVal) {
     } else if (NewVal->getType()->isIntegerTy(1)) {
       return Builder.CreateIntCast(NewVal, Type::getInt32Ty(TheContext), false, "btoi32");
     } else if (NewVal->getType()->isFloatTy()) {
-      return Builder.CreateFPToUI(NewVal, Type::getInt32Ty(TheContext), "ftoi32");
+      return Builder.CreateFPToSI(NewVal, Type::getInt32Ty(TheContext), "ftoi32");
     } 
   //convert expression into boolean
   } else if (VarType->isIntegerTy(1)) {
@@ -32,14 +32,14 @@ Value *Casting(Type *VarType, Value *NewVal) {
     } else if (NewVal->getType()->isIntegerTy(1)) {
       return NewVal;
     } else if (NewVal->getType()->isFloatTy()) {
-      return Builder.CreateFPToUI(NewVal, Type::getInt1Ty(TheContext), "ftob");
+      return Builder.CreateFPToSI(NewVal, Type::getInt1Ty(TheContext), "ftob");
     }
   //convert expression int floating point
   } else if (VarType->isFloatTy()) {
     if (NewVal->getType()->isIntegerTy(32)) {
-      return Builder.CreateUIToFP(NewVal, Type::getFloatTy(TheContext), "i32tof");
+      return Builder.CreateSIToFP(NewVal, Type::getFloatTy(TheContext), "i32tof");
     } else if (NewVal->getType()->isIntegerTy(1)) {
-      return Builder.CreateUIToFP(NewVal, Type::getFloatTy(TheContext), "i1tof");
+      return Builder.CreateSIToFP(NewVal, Type::getFloatTy(TheContext), "i1tof");
     } else if (NewVal->getType()->isFloatTy()) {
       return NewVal;
     }
@@ -87,7 +87,7 @@ Value *BlockAST::codegen() {
 Value *LiteralASTNode::codegen() {
   switch (Tok.type) {
   case (INT_LIT):
-    return ConstantInt::get(TheContext, APInt(32, std::stoi(Tok.lexeme), false));
+    return ConstantInt::get(TheContext, APInt(32, std::stoi(Tok.lexeme), true));
   case (FLOAT_LIT):
     return ConstantFP::get(TheContext, APFloat(std::stof(Tok.lexeme)));
 
@@ -100,7 +100,7 @@ Value *LiteralASTNode::codegen() {
     
     AllocaInst *V; 
 
-    // also do global case
+    
     for (int i = Scopes.size() - 1; i >= 0; i--) {
       if (Scopes[i].count(Tok.lexeme) > 0) {
         V = Scopes[i][Tok.lexeme];
@@ -131,8 +131,6 @@ Value *BinaryExprAST::codegen() {
   Value *left = LHS->codegen();
   Value *right = RHS->codegen();
 
-
-
   if (!left || !right ) {
     return nullptr;
   }
@@ -142,6 +140,7 @@ Value *BinaryExprAST::codegen() {
     if (left->getType()->isFloatTy() || right->getType()->isFloatTy()) {
       left = Casting(Type::getFloatTy(TheContext), left);
       right = Casting(Type::getFloatTy(TheContext), right);
+
       return Builder.CreateFAdd(left, right, "faddtmp");
     } 
     // otherwise there are no floating points so we do integer add which casts bools to ints
@@ -257,7 +256,6 @@ llvm::Type *getType(TOKEN t) {
     case (BOOL_TOK):
       return Type::getInt1Ty(TheContext);
     case (VOID_TOK):
-      std::cout << "at void here" << std::endl;
       return Type::getVoidTy(TheContext);
   }
 
@@ -309,12 +307,10 @@ Function *FunctionAST::codegen() {
   //make alloca for each parameter
   for (auto &Arg: TheFunction->args()) {
 
-    AllocaInst *Alloca = CreateEntryBlockAlloca(TheFunction, std::string(Arg.getName()), getType(Proto->getProtoType()));
+    AllocaInst *Alloca = CreateEntryBlockAlloca(TheFunction, std::string(Arg.getName()), Arg.getType());
     Builder.CreateStore(&Arg, Alloca);
 
     Scopes.back()[std::string(Arg.getName())] = Alloca;
-
-    
   }
   
 

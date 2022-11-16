@@ -7,7 +7,7 @@ entry:
   %rmndr = alloca i32, align 4
   %rev = alloca i32, align 4
   %t = alloca i32, align 4
-  %number1 = alloca i1, align 1
+  %number1 = alloca i32, align 4
   store i32 %number, ptr %number1, align 4
   store i32 0, ptr %t, align 4
   store i32 0, ptr %rev, align 4
@@ -15,40 +15,38 @@ entry:
   store i1 false, ptr %result, align 1
   store i32 0, ptr %rev, align 4
   store i1 false, ptr %result, align 1
-  %number2 = load i1, ptr %number1, align 1
-  %btoi32 = zext i1 %number2 to i32
-  store i32 %btoi32, ptr %t, align 4
+  %number2 = load i32, ptr %number1, align 4
+  store i32 %number2, ptr %t, align 4
   br label %before
 
 before:                                           ; preds = %loop, %entry
-  %number3 = load i1, ptr %number1, align 1
-  %i1tof = uitofp i1 %number3 to float
-  %ffttmp = fcmp ogt float %i1tof, 0.000000e+00
+  %number3 = load i32, ptr %number1, align 4
+  %i32tof = sitofp i32 %number3 to float
+  %ffttmp = fcmp ogt float %i32tof, 0.000000e+00
   %whilecond = icmp ne i1 %ffttmp, false
   br i1 %whilecond, label %loop, label %end
 
 loop:                                             ; preds = %before
-  %number4 = load i1, ptr %number1, align 1
-  %imodtmp = urem i1 %number4, i32 10
-  %btoi325 = zext i1 %imodtmp to i32
-  store i32 %btoi325, ptr %rmndr, align 4
-  %rev6 = load i32, ptr %rev, align 4
-  %imultmp = mul i32 %rev6, 10
-  %rmndr7 = load i32, ptr %rmndr, align 4
-  %iaddtmp = add i32 %imultmp, %rmndr7
+  %number4 = load i32, ptr %number1, align 4
+  %imodtmp = urem i32 %number4, 10
+  store i32 %imodtmp, ptr %rmndr, align 4
+  %rev5 = load i32, ptr %rev, align 4
+  %imultmp = mul i32 %rev5, 10
+  %rmndr6 = load i32, ptr %rmndr, align 4
+  %iaddtmp = add i32 %imultmp, %rmndr6
   store i32 %iaddtmp, ptr %rev, align 4
-  %number8 = load i1, ptr %number1, align 1
-  %idivtmp = udiv i1 %number8, i32 10
-  store i1 %idivtmp, ptr %number1, align 1
+  %number7 = load i32, ptr %number1, align 4
+  %idivtmp = udiv i32 %number7, 10
+  store i32 %idivtmp, ptr %number1, align 4
   br label %before
   br label %end
 
 end:                                              ; preds = %loop, %before
-  %t9 = load i32, ptr %t, align 4
-  %rev10 = load i32, ptr %rev, align 4
-  %i32tof = uitofp i32 %t9 to float
-  %i32tof11 = uitofp i32 %rev10 to float
-  %feqtmp = fcmp oeq float %i32tof, %i32tof11
+  %t8 = load i32, ptr %t, align 4
+  %rev9 = load i32, ptr %rev, align 4
+  %i32tof10 = sitofp i32 %t8 to float
+  %i32tof11 = sitofp i32 %rev9 to float
+  %feqtmp = fcmp oeq float %i32tof10, %i32tof11
   %ifcond = icmp ne i1 %feqtmp, false
   br i1 %ifcond, label %then, label %else
 

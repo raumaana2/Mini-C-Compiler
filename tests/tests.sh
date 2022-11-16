@@ -54,74 +54,74 @@ $CLANG driver.cpp output.ll -o palindrome
 validate "./palindrome"
 
 
-# cd tests/void
-# pwd
-# rm -rf output.ll void
-# "$COMP" ./void.c 
-# $CLANG driver.cpp output.ll -o void
-# validate "./void"
+cd ../void
+pwd
+rm -rf output.ll void
+"$COMP" ./void.c 
+$CLANG driver.cpp output.ll -o void
+validate "./void"
 
 
 
-# cd tests/addition/
-# pwd
-# rm -rf output.ll add
-# "$COMP" ./addition.c
-# $CLANG driver.cpp output.ll  -o add
-# validate "./add"
+cd ../addition/
+pwd
+rm -rf output.ll add
+"$COMP" ./addition.c
+$CLANG driver.cpp output.ll  -o add
+validate "./add"
 
 
-# cd ../factorial 
-# pwd
-# rm -rf output.ll fact
-# "$COMP" ./factorial.c
-# $CLANG driver.cpp output.ll -o fact
-# validate "./fact"
+cd ../factorial 
+pwd
+rm -rf output.ll fact
+"$COMP" ./factorial.c
+$CLANG driver.cpp output.ll -o fact
+validate "./fact"
 
-# cd ../fibonacci
-# pwd
-# rm -rf output.ll fib
-# "$COMP" ./fibonacci.c
-# $CLANG driver.cpp output.ll -o fib
-# validate "./fib"
+cd ../fibonacci
+pwd
+rm -rf output.ll fib
+"$COMP" ./fibonacci.c
+$CLANG driver.cpp output.ll -o fib
+validate "./fib"
 
-# cd ../pi
-# pwd
-# rm -rf output.ll pi
-# "$COMP" ./pi.c
-# $CLANG driver.cpp output.ll -o pi
-# validate "./pi"
+cd ../pi
+pwd
+rm -rf output.ll pi
+"$COMP" ./pi.c
+$CLANG driver.cpp output.ll -o pi
+validate "./pi"
 
-# cd ../while
-# pwd
-# rm -rf output.ll while
-# "$COMP" ./while.c
-# $CLANG driver.cpp output.ll -o while
-# validate "./while"
+cd ../while
+pwd
+rm -rf output.ll while
+"$COMP" ./while.c
+$CLANG driver.cpp output.ll -o while
+validate "./while"
 
-# cd ../recurse
-# pwd
-# rm -rf output.ll recurse
-# "$COMP" ./recurse.c
-# $CLANG driver.cpp output.ll -o recurse
-# validate "./recurse"
+cd ../recurse
+pwd
+rm -rf output.ll recurse
+"$COMP" ./recurse.c
+$CLANG driver.cpp output.ll -o recurse
+validate "./recurse"
 
-# cd ../rfact
-# pwd
-# rm -rf output.ll rfact
-# "$COMP" ./rfact.c
-# $CLANG driver.cpp output.ll -o rfact
-# validate "./rfact"
-
-
+cd ../rfact
+pwd
+rm -rf output.ll rfact
+"$COMP" ./rfact.c
+$CLANG driver.cpp output.ll -o rfact
+validate "./rfact"
 
 
-# cd ../cosine
-# pwd
-# rm -rf output.ll cosine
-# "$COMP" ./cosine.c
-# $CLANG driver.cpp output.ll -o cosine
-# validate "./cosine"
+
+
+cd ../cosine
+pwd
+rm -rf output.ll cosine
+"$COMP" ./cosine.c
+$CLANG driver.cpp output.ll -o cosine
+validate "./cosine"
 
 
 
