@@ -50,8 +50,8 @@ loop:                                             ; preds = %before
   %faddtmp15 = fadd float %cos11, %fmultmp14
   store float %faddtmp15, ptr %cos, align 4
   %alt16 = load float, ptr %alt, align 4
-  %negtmp = fneg float %alt16
-  store float %negtmp, ptr %alt, align 4
+  %fnegtmp = fneg float %alt16
+  store float %fnegtmp, ptr %alt, align 4
   %n17 = load float, ptr %n, align 4
   %faddtmp18 = fadd float %n17, 2.000000e+00
   store float %faddtmp18, ptr %n, align 4

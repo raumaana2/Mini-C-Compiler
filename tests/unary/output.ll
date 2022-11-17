@@ -29,9 +29,9 @@ entry:
   store float %faddtmp8, ptr %sum, align 4
   %n9 = load i32, ptr %n1, align 4
   %m10 = load float, ptr %m2, align 4
-  %negtmp = fneg float %m10
+  %fnegtmp = fneg float %m10
   %i32tof11 = sitofp i32 %n9 to float
-  %faddtmp12 = fadd float %i32tof11, %negtmp
+  %faddtmp12 = fadd float %i32tof11, %fnegtmp
   store float %faddtmp12, ptr %result, align 4
   %result13 = load float, ptr %result, align 4
   %calltmp14 = call float @print_float(float %result13)
@@ -41,10 +41,10 @@ entry:
   store float %faddtmp17, ptr %sum, align 4
   %n18 = load i32, ptr %n1, align 4
   %m19 = load float, ptr %m2, align 4
-  %negtmp20 = fneg float %m19
-  %negtmp21 = fneg float %negtmp20
+  %fnegtmp20 = fneg float %m19
+  %fnegtmp21 = fneg float %fnegtmp20
   %i32tof22 = sitofp i32 %n18 to float
-  %faddtmp23 = fadd float %i32tof22, %negtmp21
+  %faddtmp23 = fadd float %i32tof22, %fnegtmp21
   store float %faddtmp23, ptr %result, align 4
   %result24 = load float, ptr %result, align 4
   %calltmp25 = call float @print_float(float %result24)
@@ -53,18 +53,18 @@ entry:
   %faddtmp28 = fadd float %sum26, %result27
   store float %faddtmp28, ptr %sum, align 4
   %n29 = load i32, ptr %n1, align 4
-  %i32tof30 = sitofp i32 %n29 to float
-  %negtmp31 = fneg float %i32tof30
-  %m32 = load float, ptr %m2, align 4
-  %negtmp33 = fneg float %m32
-  %faddtmp34 = fadd float %negtmp31, %negtmp33
-  store float %faddtmp34, ptr %result, align 4
-  %result35 = load float, ptr %result, align 4
-  %calltmp36 = call float @print_float(float %result35)
-  %sum37 = load float, ptr %sum, align 4
-  %result38 = load float, ptr %result, align 4
-  %faddtmp39 = fadd float %sum37, %result38
-  store float %faddtmp39, ptr %sum, align 4
-  %sum40 = load float, ptr %sum, align 4
-  ret float %sum40
+  %inegtmp = sub i32 0, %n29
+  %m30 = load float, ptr %m2, align 4
+  %fnegtmp31 = fneg float %m30
+  %i32tof32 = sitofp i32 %inegtmp to float
+  %faddtmp33 = fadd float %i32tof32, %fnegtmp31
+  store float %faddtmp33, ptr %result, align 4
+  %result34 = load float, ptr %result, align 4
+  %calltmp35 = call float @print_float(float %result34)
+  %sum36 = load float, ptr %sum, align 4
+  %result37 = load float, ptr %result, align 4
+  %faddtmp38 = fadd float %sum36, %result37
+  store float %faddtmp38, ptr %sum, align 4
+  %sum39 = load float, ptr %sum, align 4
+  ret float %sum39
 }

@@ -21,21 +21,21 @@ Value *Casting(Type *VarType, Value *NewVal) {
     if (NewVal->getType()->isIntegerTy(32)) {
       return NewVal;
     } else if (NewVal->getType()->isIntegerTy(1)) {
-      return Builder.CreateIntCast(NewVal, Type::getInt32Ty(TheContext), true, "btoi32");
+      return Builder.CreateIntCast(NewVal, Type::getInt32Ty(TheContext), false, "btoi32");
     } else if (NewVal->getType()->isFloatTy()) {
       return Builder.CreateFPToSI(NewVal, Type::getInt32Ty(TheContext), "ftoi32");
     } 
   //convert expression into boolean
   } else if (VarType->isIntegerTy(1)) {
     if (NewVal->getType()->isIntegerTy(32)) {
-      return Builder.CreateICmpNE(NewVal, ConstantInt::get(TheContext, APInt(1, 0, false)), "i32tob");
+      return Builder.CreateICmpNE(NewVal, ConstantInt::get(Type::getInt32Ty(TheContext),false), "i32tob");
     } else if (NewVal->getType()->isIntegerTy(1)) {
       return NewVal;
     } else if (NewVal->getType()->isFloatTy()) {
 
-      return Builder.CreateFCmpONE(NewVal, ConstantInt::get(TheContext, APInt(1, 0, false)), "ftob");
+      return Builder.CreateFCmpONE(NewVal, ConstantFP::get(TheContext, APFloat(0.0f)), "ftob");
     }
-  //convert expression int floating point
+  //convert expression to floating point
   } else if (VarType->isFloatTy()) {
     if (NewVal->getType()->isIntegerTy(32)) {
       return Builder.CreateSIToFP(NewVal, Type::getFloatTy(TheContext), "i32tof");
@@ -83,7 +83,6 @@ Value *BlockAST::codegen() {
 
       auto StmtToReturn = dynamic_cast<ReturnAST*>(StmtList[i].get());
       if (StmtToReturn) {
-        //stmmt == return stmt 
         StmtToReturn->codegen();
         break;
       }
@@ -189,7 +188,9 @@ Value *BinaryExprAST::codegen() {
     } 
     // otherwise there are no floating points so we do integer add which casts bools to ints
     return Builder.CreateURem(left, right, "imodtmp");
+
   case (EQ):
+  
       left = Casting(Type::getFloatTy(TheContext), left);
       right = Casting(Type::getFloatTy(TheContext), right);
       return Builder.CreateFCmpOEQ(left, right, "feqtmp");
@@ -210,9 +211,18 @@ Value *BinaryExprAST::codegen() {
       right = Casting(Type::getFloatTy(TheContext), right);
       return Builder.CreateFCmpOGE(left, right, "fgetmp");
   case (GT):
+      
       left = Casting(Type::getFloatTy(TheContext), left);
       right = Casting(Type::getFloatTy(TheContext), right);
       return Builder.CreateFCmpOGT(left, right, "ffttmp");
+  case (OR):
+    left = Casting(Type::getInt1Ty(TheContext), left);
+    right = Casting(Type::getInt1Ty(TheContext), right);
+    return Builder.CreateOr(left, right, "ortmp");
+  case (AND):
+    left = Casting(Type::getInt1Ty(TheContext), left);
+    right = Casting(Type::getInt1Ty(TheContext), right);
+    return Builder.CreateAnd(left, right, "andtmp");
   }
   return nullptr;
 }
@@ -220,7 +230,6 @@ Value *BinaryExprAST::codegen() {
 
 Value *UnaryExprAST::codegen() {
   Value *V = Expr->codegen();
-  std::cout << "ova here?" << std::endl;
 
   if (!V)
     return nullptr;
@@ -228,16 +237,15 @@ Value *UnaryExprAST::codegen() {
   
   switch (Op.type) {
   case (NOT):
-    std::cout << "ova here in not?" << std::endl;
+    V = Casting(Type::getInt1Ty(TheContext), V);
     return Builder.CreateNot(V, "nottmp");
   case (MINUS):
-    std::cout << "ova here in negation?" << std::endl;
-  
+    if (V->getType()->isIntegerTy(1) || V->getType()->isIntegerTy(32)) {
+      V = Casting(Type::getInt32Ty(TheContext), V);
+      return Builder.CreateNeg(V, "inegtmp");
+    }
     V = Casting(Type::getFloatTy(TheContext), V);
-    
-    std::cout << "does it pass casting?" << std::endl;
-
-    return Builder.CreateFNeg(V, "negtmp");
+    return Builder.CreateFNeg(V, "fnegtmp");
   }
 
   return nullptr;
@@ -488,7 +496,7 @@ Value *VarDeclAST::codegen() {
 
 
 Value *VarAssignAST::codegen() {
-
+  std::cout << "name of variable" << Name.lexeme << std::endl;
   Value *Val = Expr->codegen();
 
   if (!Val) {
