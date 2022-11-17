@@ -21,7 +21,7 @@ entry:
 
 before:                                           ; preds = %loop, %entry
   %result2 = load i32, ptr %result, align 4
-  %i32tof = uitofp i32 %result2 to float
+  %i32tof = sitofp i32 %result2 to float
   %flttmp = fcmp olt float %i32tof, 1.000000e+01
   %whilecond = icmp ne i1 %flttmp, false
   br i1 %whilecond, label %loop, label %end

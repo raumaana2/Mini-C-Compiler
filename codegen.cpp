@@ -21,25 +21,26 @@ Value *Casting(Type *VarType, Value *NewVal) {
     if (NewVal->getType()->isIntegerTy(32)) {
       return NewVal;
     } else if (NewVal->getType()->isIntegerTy(1)) {
-      return Builder.CreateIntCast(NewVal, Type::getInt32Ty(TheContext), false, "btoi32");
+      return Builder.CreateIntCast(NewVal, Type::getInt32Ty(TheContext), true, "btoi32");
     } else if (NewVal->getType()->isFloatTy()) {
-      return Builder.CreateFPToUI(NewVal, Type::getInt32Ty(TheContext), "ftoi32");
+      return Builder.CreateFPToSI(NewVal, Type::getInt32Ty(TheContext), "ftoi32");
     } 
   //convert expression into boolean
   } else if (VarType->isIntegerTy(1)) {
     if (NewVal->getType()->isIntegerTy(32)) {
-      return Builder.CreateICmpNE(NewVal, ConstantInt::get(Type::getInt32Ty(TheContext), 0, false), "i32tob");
+      return Builder.CreateICmpNE(NewVal, ConstantInt::get(TheContext, APInt(1, 0, false)), "i32tob");
     } else if (NewVal->getType()->isIntegerTy(1)) {
       return NewVal;
     } else if (NewVal->getType()->isFloatTy()) {
-      return Builder.CreateICmpNE(NewVal, ConstantInt::get(Type::getInt32Ty(TheContext), 0, false), "ftob");
+
+      return Builder.CreateFCmpONE(NewVal, ConstantInt::get(TheContext, APInt(1, 0, false)), "ftob");
     }
   //convert expression int floating point
   } else if (VarType->isFloatTy()) {
     if (NewVal->getType()->isIntegerTy(32)) {
-      return Builder.CreateUIToFP(NewVal, Type::getFloatTy(TheContext), "i32tof");
+      return Builder.CreateSIToFP(NewVal, Type::getFloatTy(TheContext), "i32tof");
     } else if (NewVal->getType()->isIntegerTy(1)) {
-      return Builder.CreateUIToFP(NewVal, Type::getFloatTy(TheContext), "i1tof");
+      return Builder.CreateSIToFP(NewVal, Type::getFloatTy(TheContext), "i1tof");
     } else if (NewVal->getType()->isFloatTy()) {
       return NewVal;
     }
@@ -77,8 +78,17 @@ Value *BlockAST::codegen() {
   }
 
   for (int i = 0; i < StmtList.size(); i++) {
-    if (StmtList[i])
+    
+    if (StmtList[i]) {
+
+      auto StmtToReturn = dynamic_cast<ReturnAST*>(StmtList[i].get());
+      if (StmtToReturn) {
+        //stmmt == return stmt 
+        StmtToReturn->codegen();
+        break;
+      }
       StmtList[i]->codegen();
+    }
   }
   Scopes.pop_back();
   return nullptr;
@@ -87,7 +97,7 @@ Value *BlockAST::codegen() {
 Value *LiteralASTNode::codegen() {
   switch (Tok.type) {
   case (INT_LIT):
-    return ConstantInt::get(TheContext, APInt(32, std::stoi(Tok.lexeme), false));
+    return ConstantInt::get(TheContext, APInt(32, std::stoi(Tok.lexeme), true));
   case (FLOAT_LIT):
     return ConstantFP::get(TheContext, APFloat(std::stof(Tok.lexeme)));
 
@@ -183,7 +193,6 @@ Value *BinaryExprAST::codegen() {
       left = Casting(Type::getFloatTy(TheContext), left);
       right = Casting(Type::getFloatTy(TheContext), right);
       return Builder.CreateFCmpOEQ(left, right, "feqtmp");
-    return Builder.CreateICmpEQ(left, right, "ieqtmp");
   case (NE):
       left = Casting(Type::getFloatTy(TheContext), left);
       right = Casting(Type::getFloatTy(TheContext), right);
@@ -211,6 +220,7 @@ Value *BinaryExprAST::codegen() {
 
 Value *UnaryExprAST::codegen() {
   Value *V = Expr->codegen();
+  std::cout << "ova here?" << std::endl;
 
   if (!V)
     return nullptr;
@@ -218,9 +228,15 @@ Value *UnaryExprAST::codegen() {
   
   switch (Op.type) {
   case (NOT):
+    std::cout << "ova here in not?" << std::endl;
     return Builder.CreateNot(V, "nottmp");
   case (MINUS):
+    std::cout << "ova here in negation?" << std::endl;
+  
     V = Casting(Type::getFloatTy(TheContext), V);
+    
+    std::cout << "does it pass casting?" << std::endl;
+
     return Builder.CreateFNeg(V, "negtmp");
   }
 
@@ -472,6 +488,7 @@ Value *VarDeclAST::codegen() {
 
 
 Value *VarAssignAST::codegen() {
+
   Value *Val = Expr->codegen();
 
   if (!Val) {
