@@ -474,10 +474,8 @@ Value *VarDeclAST::codegen() {
 Value *VarAssignAST::codegen() {
   Value *Val = Expr->codegen();
 
-  std::cout << "modifying: " << Name.lexeme << std::endl;
   if (!Val) {
     
-    std::cout << Name.lexeme << "should not be here" << std::endl; 
     return nullptr;
   }
 
@@ -508,6 +506,6 @@ Value *VarAssignAST::codegen() {
   }
 
   
-  return nullptr;
+  return Val;
 }
 
