@@ -21,7 +21,7 @@ Value *Casting(Type *VarType, Value *NewVal) {
     if (NewVal->getType()->isIntegerTy(32)) {
       return NewVal;
     } else if (NewVal->getType()->isIntegerTy(1)) {
-      return Builder.CreateIntCast(NewVal, Type::getInt32Ty(TheContext), false, "btoi32");
+      return Builder.CreateIntCast(NewVal, Type::getInt32Ty(TheContext), true, "btoi32");
     } else if (NewVal->getType()->isFloatTy()) {
       return Builder.CreateFPToSI(NewVal, Type::getInt32Ty(TheContext), "ftoi32");
     } 
