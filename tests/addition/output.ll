@@ -16,7 +16,7 @@ entry:
   %iaddtmp = add i32 %n3, %m4
   store i32 %iaddtmp, ptr %result, align 4
   %n5 = load i32, ptr %n1, align 4
-  %i32tof = sitofp i32 %n5 to float
+  %i32tof = uitofp i32 %n5 to float
   %feqtmp = fcmp oeq float %i32tof, 4.000000e+00
   %ifcond = icmp ne i1 %feqtmp, false
   br i1 %ifcond, label %then, label %else

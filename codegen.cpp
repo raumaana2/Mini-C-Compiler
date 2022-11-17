@@ -21,25 +21,25 @@ Value *Casting(Type *VarType, Value *NewVal) {
     if (NewVal->getType()->isIntegerTy(32)) {
       return NewVal;
     } else if (NewVal->getType()->isIntegerTy(1)) {
-      return Builder.CreateIntCast(NewVal, Type::getInt32Ty(TheContext), true, "btoi32");
+      return Builder.CreateIntCast(NewVal, Type::getInt32Ty(TheContext), false, "btoi32");
     } else if (NewVal->getType()->isFloatTy()) {
-      return Builder.CreateFPToSI(NewVal, Type::getInt32Ty(TheContext), "ftoi32");
+      return Builder.CreateFPToUI(NewVal, Type::getInt32Ty(TheContext), "ftoi32");
     } 
   //convert expression into boolean
   } else if (VarType->isIntegerTy(1)) {
     if (NewVal->getType()->isIntegerTy(32)) {
-      return Builder.CreateBitCast(NewVal, Type::getInt1Ty(TheContext), "i32tob");
+      return Builder.CreateICmpNE(NewVal, ConstantInt::get(Type::getInt32Ty(TheContext), 0, false), "i32tob");
     } else if (NewVal->getType()->isIntegerTy(1)) {
       return NewVal;
     } else if (NewVal->getType()->isFloatTy()) {
-      return Builder.CreateFPToSI(NewVal, Type::getInt1Ty(TheContext), "ftob");
+      return Builder.CreateICmpNE(NewVal, ConstantInt::get(Type::getInt32Ty(TheContext), 0, false), "ftob");
     }
   //convert expression int floating point
   } else if (VarType->isFloatTy()) {
     if (NewVal->getType()->isIntegerTy(32)) {
-      return Builder.CreateSIToFP(NewVal, Type::getFloatTy(TheContext), "i32tof");
+      return Builder.CreateUIToFP(NewVal, Type::getFloatTy(TheContext), "i32tof");
     } else if (NewVal->getType()->isIntegerTy(1)) {
-      return Builder.CreateSIToFP(NewVal, Type::getFloatTy(TheContext), "i1tof");
+      return Builder.CreateUIToFP(NewVal, Type::getFloatTy(TheContext), "i1tof");
     } else if (NewVal->getType()->isFloatTy()) {
       return NewVal;
     }
@@ -87,7 +87,7 @@ Value *BlockAST::codegen() {
 Value *LiteralASTNode::codegen() {
   switch (Tok.type) {
   case (INT_LIT):
-    return ConstantInt::get(TheContext, APInt(32, std::stoi(Tok.lexeme), true));
+    return ConstantInt::get(TheContext, APInt(32, std::stoi(Tok.lexeme), false));
   case (FLOAT_LIT):
     return ConstantFP::get(TheContext, APFloat(std::stof(Tok.lexeme)));
 
@@ -239,8 +239,14 @@ Value *CallExprAST::codegen() {
 
   std::vector<Value *> ArgsV;
 
+  std::vector<Type *> ParameterTypes; 
+  
+  for (auto &Arg : CalleeF->args()) {
+    ParameterTypes.push_back(Arg.getType());
+  }
+
   for (int i = 0; i < Args.size(); i++) {
-    ArgsV.push_back(Args[i]->codegen());
+    ArgsV.push_back(Casting(ParameterTypes[i], Args[i]->codegen()));
   }
 
   return Builder.CreateCall(CalleeF, ArgsV, "calltmp");
@@ -328,7 +334,6 @@ Function *FunctionAST::codegen() {
   Scopes.pop_back();
 
 
-  std::cout << "can i make here" << std::endl;
 
   return nullptr;
 
@@ -469,8 +474,12 @@ Value *VarDeclAST::codegen() {
 Value *VarAssignAST::codegen() {
   Value *Val = Expr->codegen();
 
-  if (!Val)
+  std::cout << "modifying: " << Name.lexeme << std::endl;
+  if (!Val) {
+    
+    std::cout << Name.lexeme << "should not be here" << std::endl; 
     return nullptr;
+  }
 
   
 
@@ -481,6 +490,9 @@ Value *VarAssignAST::codegen() {
       Value *CastedVal = Casting(Alloca->getAllocatedType(), Val);
       Builder.CreateStore(CastedVal, Alloca);
       Scopes[i][Name.lexeme] = Alloca;
+
+      if (i == Scopes.size() - 1) 
+        break;
     } 
   }
 

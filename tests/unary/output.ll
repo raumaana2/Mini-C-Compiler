@@ -18,7 +18,7 @@ entry:
   store float 0.000000e+00, ptr %sum, align 4
   %n3 = load i32, ptr %n1, align 4
   %m4 = load float, ptr %m2, align 4
-  %i32tof = sitofp i32 %n3 to float
+  %i32tof = uitofp i32 %n3 to float
   %faddtmp = fadd float %i32tof, %m4
   store float %faddtmp, ptr %result, align 4
   %result5 = load float, ptr %result, align 4
@@ -30,7 +30,7 @@ entry:
   %n9 = load i32, ptr %n1, align 4
   %m10 = load float, ptr %m2, align 4
   %negtmp = fneg float %m10
-  %i32tof11 = sitofp i32 %n9 to float
+  %i32tof11 = uitofp i32 %n9 to float
   %faddtmp12 = fadd float %i32tof11, %negtmp
   store float %faddtmp12, ptr %result, align 4
   %result13 = load float, ptr %result, align 4
@@ -43,7 +43,7 @@ entry:
   %m19 = load float, ptr %m2, align 4
   %negtmp20 = fneg float %m19
   %negtmp21 = fneg float %negtmp20
-  %i32tof22 = sitofp i32 %n18 to float
+  %i32tof22 = uitofp i32 %n18 to float
   %faddtmp23 = fadd float %i32tof22, %negtmp21
   store float %faddtmp23, ptr %result, align 4
   %result24 = load float, ptr %result, align 4
@@ -53,7 +53,7 @@ entry:
   %faddtmp28 = fadd float %sum26, %result27
   store float %faddtmp28, ptr %sum, align 4
   %n29 = load i32, ptr %n1, align 4
-  %i32tof30 = sitofp i32 %n29 to float
+  %i32tof30 = uitofp i32 %n29 to float
   %negtmp31 = fneg float %i32tof30
   %m32 = load float, ptr %m2, align 4
   %negtmp33 = fneg float %m32

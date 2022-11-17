@@ -128,4 +128,5 @@ validate "./cosine"
 
 
 
-echo "***** ALL TESTS PASSED *****"
+echo -e "\e[1;31m*\e[1;32m*\e[1;34m*🎉\e[1;32mALL TESTS PASSED🎉\e[1;31m*\e[1;32m*\e[1;34m*"
+

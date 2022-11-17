@@ -16,7 +16,7 @@ entry:
 
 before:                                           ; preds = %end, %entry
   %i1 = load i32, ptr %i, align 4
-  %i32tof = sitofp i32 %i1 to float
+  %i32tof = uitofp i32 %i1 to float
   %flttmp = fcmp olt float %i32tof, 1.000000e+02
   %whilecond = icmp ne i1 %flttmp, false
   br i1 %whilecond, label %loop, label %end23
@@ -35,7 +35,7 @@ then:                                             ; preds = %loop
   %i6 = load i32, ptr %i, align 4
   %iaddtmp7 = add i32 %i6, 2
   %imultmp8 = mul i32 %imultmp, %iaddtmp7
-  %i32tof9 = sitofp i32 %imultmp8 to float
+  %i32tof9 = uitofp i32 %imultmp8 to float
   %fdivtmp = fdiv float 4.000000e+00, %i32tof9
   %faddtmp = fadd float %PI3, %fdivtmp
   store float %faddtmp, ptr %PI, align 4
@@ -50,7 +50,7 @@ else:                                             ; preds = %loop
   %i15 = load i32, ptr %i, align 4
   %iaddtmp16 = add i32 %i15, 2
   %imultmp17 = mul i32 %imultmp14, %iaddtmp16
-  %i32tof18 = sitofp i32 %imultmp17 to float
+  %i32tof18 = uitofp i32 %imultmp17 to float
   %fdivtmp19 = fdiv float 4.000000e+00, %i32tof18
   %fsubtmp = fsub float %PI10, %fdivtmp19
   store float %fsubtmp, ptr %PI, align 4

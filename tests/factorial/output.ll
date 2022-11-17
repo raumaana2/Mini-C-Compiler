@@ -16,8 +16,8 @@ entry:
 before:                                           ; preds = %loop, %entry
   %i2 = load i32, ptr %i, align 4
   %n3 = load i32, ptr %n1, align 4
-  %i32tof = sitofp i32 %i2 to float
-  %i32tof4 = sitofp i32 %n3 to float
+  %i32tof = uitofp i32 %i2 to float
+  %i32tof4 = uitofp i32 %n3 to float
   %fletmp = fcmp ole float %i32tof, %i32tof4
   %whilecond = icmp ne i1 %fletmp, false
   br i1 %whilecond, label %loop, label %end

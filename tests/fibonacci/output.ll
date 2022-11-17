@@ -28,15 +28,15 @@ entry:
 before:                                           ; preds = %end, %entry
   %c3 = load i32, ptr %c, align 4
   %n4 = load i32, ptr %n1, align 4
-  %i32tof = sitofp i32 %c3 to float
-  %i32tof5 = sitofp i32 %n4 to float
+  %i32tof = uitofp i32 %c3 to float
+  %i32tof5 = uitofp i32 %n4 to float
   %flttmp = fcmp olt float %i32tof, %i32tof5
   %whilecond = icmp ne i1 %flttmp, false
   br i1 %whilecond, label %loop, label %end20
 
 loop:                                             ; preds = %before
   %c6 = load i32, ptr %c, align 4
-  %i32tof7 = sitofp i32 %c6 to float
+  %i32tof7 = uitofp i32 %c6 to float
   %fletmp = fcmp ole float %i32tof7, 1.000000e+00
   %ifcond = icmp ne i1 %fletmp, false
   br i1 %ifcond, label %then, label %else

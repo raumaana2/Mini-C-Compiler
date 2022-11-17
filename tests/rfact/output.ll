@@ -9,7 +9,7 @@ entry:
   store i32 0, ptr %result, align 4
   store i32 0, ptr %result, align 4
   %n2 = load i32, ptr %n1, align 4
-  %i32tof = sitofp i32 %n2 to float
+  %i32tof = uitofp i32 %n2 to float
   %fgetmp = fcmp oge float %i32tof, 1.000000e+00
   %ifcond = icmp ne i1 %fgetmp, false
   br i1 %ifcond, label %then, label %else
