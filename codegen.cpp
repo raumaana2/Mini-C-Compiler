@@ -396,7 +396,8 @@ Value *IfAST::codegen() {
   // if false
   TheFunction->getBasicBlockList().push_back(false_);
   Builder.SetInsertPoint(false_);
-  ElseBody->codegen();
+  if (ElseBody) 
+    ElseBody->codegen();
 
   // end
   TheFunction->getBasicBlockList().push_back(end_);
