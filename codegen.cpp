@@ -4,43 +4,54 @@
 using namespace llvm;
 using namespace llvm::sys;
 
-
 LLVMContext TheContext;
 IRBuilder<> Builder(TheContext);
 std::unique_ptr<Module> TheModule;
 
-AllocaInst* CreateEntryBlockAlloca(Function *TheFunction, const std::string &VarName, llvm::Type* type) {
-  IRBuilder<> TmpB(&TheFunction->getEntryBlock(), TheFunction->getEntryBlock().begin());
+int return_flag = 0;
+
+AllocaInst *CreateEntryBlockAlloca(Function *TheFunction,
+                                   const std::string &VarName,
+                                   llvm::Type *type) {
+  IRBuilder<> TmpB(&TheFunction->getEntryBlock(),
+                   TheFunction->getEntryBlock().begin());
 
   return TmpB.CreateAlloca(type, 0, VarName.c_str());
 }
 
 Value *Casting(Type *VarType, Value *NewVal) {
-  //create expression into 32 bit integer
+  // create expression into 32 bit integer
   if (VarType->isIntegerTy(32)) {
     if (NewVal->getType()->isIntegerTy(32)) {
       return NewVal;
     } else if (NewVal->getType()->isIntegerTy(1)) {
-      return Builder.CreateIntCast(NewVal, Type::getInt32Ty(TheContext), false, "btoi32");
+      return Builder.CreateIntCast(NewVal, Type::getInt32Ty(TheContext), false,
+                                   "btoi32");
     } else if (NewVal->getType()->isFloatTy()) {
-      return Builder.CreateFPToSI(NewVal, Type::getInt32Ty(TheContext), "ftoi32");
-    } 
-  //convert expression into boolean
+      return Builder.CreateFPToSI(NewVal, Type::getInt32Ty(TheContext),
+                                  "ftoi32");
+    }
+    // convert expression into boolean
   } else if (VarType->isIntegerTy(1)) {
     if (NewVal->getType()->isIntegerTy(32)) {
-      return Builder.CreateICmpNE(NewVal, ConstantInt::get(Type::getInt32Ty(TheContext),false), "i32tob");
+      return Builder.CreateICmpNE(
+          NewVal, ConstantInt::get(Type::getInt32Ty(TheContext), false),
+          "i32tob");
     } else if (NewVal->getType()->isIntegerTy(1)) {
       return NewVal;
     } else if (NewVal->getType()->isFloatTy()) {
 
-      return Builder.CreateFCmpONE(NewVal, ConstantFP::get(TheContext, APFloat(0.0f)), "ftob");
+      return Builder.CreateFCmpONE(
+          NewVal, ConstantFP::get(TheContext, APFloat(0.0f)), "ftob");
     }
-  //convert expression to floating point
+    // convert expression to floating point
   } else if (VarType->isFloatTy()) {
     if (NewVal->getType()->isIntegerTy(32)) {
-      return Builder.CreateSIToFP(NewVal, Type::getFloatTy(TheContext), "i32tof");
+      return Builder.CreateSIToFP(NewVal, Type::getFloatTy(TheContext),
+                                  "i32tof");
     } else if (NewVal->getType()->isIntegerTy(1)) {
-      return Builder.CreateSIToFP(NewVal, Type::getFloatTy(TheContext), "i1tof");
+      return Builder.CreateSIToFP(NewVal, Type::getFloatTy(TheContext),
+                                  "i1tof");
     } else if (NewVal->getType()->isFloatTy()) {
       return NewVal;
     }
@@ -49,44 +60,48 @@ Value *Casting(Type *VarType, Value *NewVal) {
   return nullptr;
 }
 
-std::vector<std::map<std::string, AllocaInst*>> Scopes; 
-std::map<std::string, GlobalVariable*> GlobalVariables;
-
-
+std::vector<std::map<std::string, AllocaInst *>> Scopes;
+std::map<std::string, GlobalVariable *> GlobalVariables;
 
 Value *ProgramAST::codegen() {
   for (int i = 0; i < ExternList.size(); i++) {
     if (ExternList[i])
       ExternList[i]->codegen();
   }
-  
-  
+
   for (int i = 0; i < DeclList.size(); i++) {
     if (DeclList[i])
       DeclList[i]->codegen();
   }
 
-
   return nullptr;
 }
 
 Value *BlockAST::codegen() {
-  Scopes.push_back(std::map<std::string, AllocaInst*>());
+  llvm::Type *FuncReturnType = Builder.getCurrentFunctionReturnType();
+  Scopes.push_back(std::map<std::string, AllocaInst *>());
   for (int i = 0; i < LocalDecls.size(); i++) {
     if (LocalDecls[i])
       LocalDecls[i]->codegen();
   }
 
   for (int i = 0; i < StmtList.size(); i++) {
-    
+
     if (StmtList[i]) {
 
-      auto StmtToReturn = dynamic_cast<ReturnAST*>(StmtList[i].get());
+      auto StmtToReturn = dynamic_cast<ReturnAST *>(StmtList[i].get());
+
       if (StmtToReturn) {
         StmtToReturn->codegen();
         break;
       }
       StmtList[i]->codegen();
+    }
+    
+  }
+  if (Scopes.size() == 2 && FuncReturnType->isVoidTy()) {
+    if (return_flag != 1) {
+      Builder.CreateRetVoid();
     }
   }
   Scopes.pop_back();
@@ -106,15 +121,14 @@ Value *LiteralASTNode::codegen() {
     return ConstantInt::get(TheContext, APInt(1, bool_, false));
   }
   case (IDENT):
-    
-    AllocaInst *V; 
 
-    
+    AllocaInst *V;
+
     for (int i = Scopes.size() - 1; i >= 0; i--) {
       if (Scopes[i].count(Tok.lexeme) > 0) {
         V = Scopes[i][Tok.lexeme];
         break;
-      } 
+      }
     }
 
     if (!V) {
@@ -123,24 +137,20 @@ Value *LiteralASTNode::codegen() {
       if (!G)
         return nullptr;
       return Builder.CreateLoad(G->getValueType(), G, Tok.lexeme);
-    } else { 
+    } else {
       return Builder.CreateLoad(V->getAllocatedType(), V, Tok.lexeme);
     }
-    
-    
   }
 
   return nullptr;
 }
 
-
 Value *BinaryExprAST::codegen() {
-
 
   Value *left = LHS->codegen();
   Value *right = RHS->codegen();
 
-  if (!left || !right ) {
+  if (!left || !right) {
     return nullptr;
   }
   switch (Op.type) {
@@ -151,70 +161,75 @@ Value *BinaryExprAST::codegen() {
       right = Casting(Type::getFloatTy(TheContext), right);
 
       return Builder.CreateFAdd(left, right, "faddtmp");
-    } 
-    // otherwise there are no floating points so we do integer add which casts bools to ints
-    return Builder.CreateAdd(left, right,"iaddtmp");
-    
+    }
+    // otherwise there are no floating points so we do integer add which casts
+    // bools to ints
+    return Builder.CreateAdd(left, right, "iaddtmp");
+
   case (MINUS):
     // if either are floating point, we want to convert both to floating point
     if (left->getType()->isFloatTy() || right->getType()->isFloatTy()) {
       left = Casting(Type::getFloatTy(TheContext), left);
       right = Casting(Type::getFloatTy(TheContext), right);
       return Builder.CreateFSub(left, right, "fsubtmp");
-    } 
-    // otherwise there are no floating points so we do integer add which casts bools to ints
-    return Builder.CreateSub(left, right,"isubtmp");
+    }
+    // otherwise there are no floating points so we do integer add which casts
+    // bools to ints
+    return Builder.CreateSub(left, right, "isubtmp");
   case (ASTERIX):
     if (left->getType()->isFloatTy() || right->getType()->isFloatTy()) {
       left = Casting(Type::getFloatTy(TheContext), left);
       right = Casting(Type::getFloatTy(TheContext), right);
       return Builder.CreateFMul(left, right, "fmultmp");
-    } 
-    // otherwise there are no floating points so we do integer add which casts bools to ints
-    return Builder.CreateMul(left, right,"imultmp");
+    }
+    // otherwise there are no floating points so we do integer add which casts
+    // bools to ints
+    return Builder.CreateMul(left, right, "imultmp");
   case (DIV):
     if (left->getType()->isFloatTy() || right->getType()->isFloatTy()) {
       left = Casting(Type::getFloatTy(TheContext), left);
       right = Casting(Type::getFloatTy(TheContext), right);
       return Builder.CreateFDiv(left, right, "fdivtmp");
-    } 
-    // otherwise there are no floating points so we do integer add which casts bools to ints
-    return Builder.CreateUDiv(left, right,"idivtmp");
+    }
+    // otherwise there are no floating points so we do integer add which casts
+    // bools to ints
+    return Builder.CreateUDiv(left, right, "idivtmp");
   case (MOD):
     if (left->getType()->isFloatTy() || right->getType()->isFloatTy()) {
       left = Casting(Type::getFloatTy(TheContext), left);
       right = Casting(Type::getFloatTy(TheContext), right);
       return Builder.CreateFRem(left, right, "fmodtmp");
-    } 
-    // otherwise there are no floating points so we do integer add which casts bools to ints
+    }
+    // otherwise there are no floating points so we do integer add which casts
+    // bools to ints
     return Builder.CreateURem(left, right, "imodtmp");
 
   case (EQ):
-  
-      left = Casting(Type::getFloatTy(TheContext), left);
-      right = Casting(Type::getFloatTy(TheContext), right);
-      return Builder.CreateFCmpOEQ(left, right, "feqtmp");
+
+    left = Casting(Type::getFloatTy(TheContext), left);
+    right = Casting(Type::getFloatTy(TheContext), right);
+    return Builder.CreateFCmpOEQ(left, right, "feqtmp");
   case (NE):
-      left = Casting(Type::getFloatTy(TheContext), left);
-      right = Casting(Type::getFloatTy(TheContext), right);
-      return Builder.CreateFCmpONE(left, right, "fneqtmp");
+    left = Casting(Type::getFloatTy(TheContext), left);
+    right = Casting(Type::getFloatTy(TheContext), right);
+    return Builder.CreateFCmpONE(left, right, "fneqtmp");
   case (LE):
-      left = Casting(Type::getFloatTy(TheContext), left);
-      right = Casting(Type::getFloatTy(TheContext), right);
-      return Builder.CreateFCmpOLE(left, right, "fletmp");
+    left = Casting(Type::getFloatTy(TheContext), left);
+    right = Casting(Type::getFloatTy(TheContext), right);
+    return Builder.CreateFCmpOLE(left, right, "fletmp");
   case (LT):
-      left = Casting(Type::getFloatTy(TheContext), left);
-      right = Casting(Type::getFloatTy(TheContext), right);
-      return Builder.CreateFCmpOLT(left, right, "flttmp");
+    left = Casting(Type::getFloatTy(TheContext), left);
+    right = Casting(Type::getFloatTy(TheContext), right);
+    return Builder.CreateFCmpOLT(left, right, "flttmp");
   case (GE):
-      left = Casting(Type::getFloatTy(TheContext), left);
-      right = Casting(Type::getFloatTy(TheContext), right);
-      return Builder.CreateFCmpOGE(left, right, "fgetmp");
+    left = Casting(Type::getFloatTy(TheContext), left);
+    right = Casting(Type::getFloatTy(TheContext), right);
+    return Builder.CreateFCmpOGE(left, right, "fgetmp");
   case (GT):
-      
-      left = Casting(Type::getFloatTy(TheContext), left);
-      right = Casting(Type::getFloatTy(TheContext), right);
-      return Builder.CreateFCmpOGT(left, right, "ffttmp");
+
+    left = Casting(Type::getFloatTy(TheContext), left);
+    right = Casting(Type::getFloatTy(TheContext), right);
+    return Builder.CreateFCmpOGT(left, right, "ffttmp");
   case (OR):
     left = Casting(Type::getInt1Ty(TheContext), left);
     right = Casting(Type::getInt1Ty(TheContext), right);
@@ -227,14 +242,12 @@ Value *BinaryExprAST::codegen() {
   return nullptr;
 }
 
-
 Value *UnaryExprAST::codegen() {
   Value *V = Expr->codegen();
 
   if (!V)
     return nullptr;
 
-  
   switch (Op.type) {
   case (NOT):
     V = Casting(Type::getInt1Ty(TheContext), V);
@@ -251,7 +264,6 @@ Value *UnaryExprAST::codegen() {
   return nullptr;
 }
 
-
 Value *CallExprAST::codegen() {
   Function *CalleeF = TheModule->getFunction(Callee.lexeme);
 
@@ -263,8 +275,8 @@ Value *CallExprAST::codegen() {
 
   std::vector<Value *> ArgsV;
 
-  std::vector<Type *> ParameterTypes; 
-  
+  std::vector<Type *> ParameterTypes;
+
   for (auto &Arg : CalleeF->args()) {
     ParameterTypes.push_back(Arg.getType());
   }
@@ -276,42 +288,38 @@ Value *CallExprAST::codegen() {
   return Builder.CreateCall(CalleeF, ArgsV, "calltmp");
 }
 
-
 llvm::Type *getType(TOKEN t) {
   switch (t.type) {
-    case (INT_TOK):
-      return Type::getInt32Ty(TheContext);
-    case (FLOAT_TOK): 
-      return Type::getFloatTy(TheContext);
-    case (BOOL_TOK):
-      return Type::getInt1Ty(TheContext);
-    case (VOID_TOK):
-      return Type::getVoidTy(TheContext);
+  case (INT_TOK):
+    return Type::getInt32Ty(TheContext);
+  case (FLOAT_TOK):
+    return Type::getFloatTy(TheContext);
+  case (BOOL_TOK):
+    return Type::getInt1Ty(TheContext);
+  case (VOID_TOK):
+    return Type::getVoidTy(TheContext);
   }
 
   return nullptr;
 }
 
-// code generation for the prototype of a function 
+// code generation for the prototype of a function
 Function *PrototypeAST::codegen() {
- 
-  std::vector<llvm::Type*> Arguments;
 
+  std::vector<llvm::Type *> Arguments;
 
-  
-  //load correct types into prototype arguments list
+  // load correct types into prototype arguments list
   for (int i = 0; i < Args.size(); i++) {
     if (Args[i] && Args[i]->Type.lexeme != "void")
       Arguments.push_back(getType(Args[i]->Type));
   }
 
-  FunctionType *FT =
-  FunctionType::get(getType(Type), Arguments, false);
+  FunctionType *FT = FunctionType::get(getType(Type), Arguments, false);
 
-  Function *F =
-      Function::Create(FT, Function::ExternalLinkage, Name.lexeme, TheModule.get());
+  Function *F = Function::Create(FT, Function::ExternalLinkage, Name.lexeme,
+                                 TheModule.get());
 
-  //set names for all arguments 
+  // set names for all arguments
   int i = 0;
   for (auto &Arg : F->args()) {
     Arg.setName(Args.at(i++)->Name.lexeme);
@@ -320,9 +328,8 @@ Function *PrototypeAST::codegen() {
   return F;
 }
 
-
 Function *FunctionAST::codegen() {
-  Scopes.push_back(std::map<std::string, AllocaInst*>());
+  Scopes.push_back(std::map<std::string, AllocaInst *>());
   Function *TheFunction = TheModule->getFunction(Proto->getName());
 
   if (!TheFunction)
@@ -334,41 +341,36 @@ Function *FunctionAST::codegen() {
   BasicBlock *BB = BasicBlock::Create(TheContext, "entry", TheFunction);
   Builder.SetInsertPoint(BB);
 
-  //make alloca for each parameter
-  for (auto &Arg: TheFunction->args()) {
+  // make alloca for each parameter
+  for (auto &Arg : TheFunction->args()) {
 
-    AllocaInst *Alloca = CreateEntryBlockAlloca(TheFunction, std::string(Arg.getName()), Arg.getType());
+    AllocaInst *Alloca = CreateEntryBlockAlloca(
+        TheFunction, std::string(Arg.getName()), Arg.getType());
     Builder.CreateStore(&Arg, Alloca);
 
     Scopes.back()[std::string(Arg.getName())] = Alloca;
   }
-  
 
-  
-  Value *RetVal = Body->codegen();
+  Body->codegen();
 
-  if (RetVal) {
-    Builder.CreateRet(RetVal);
-    verifyFunction(*TheFunction);
-    return TheFunction;
+  verifyFunction(*TheFunction);
 
-  }
-  return TheFunction;
-  TheFunction->eraseFromParent();
+
+
   Scopes.pop_back();
 
-
-
-  return nullptr;
+  return TheFunction;
 
 }
 
-// code generation for IfElse/If statments 
+// code generation for IfElse/If statments
 Value *IfAST::codegen() {
+  Scopes.push_back(std::map<std::string, AllocaInst *>());
   Function *TheFunction = Builder.GetInsertBlock()->getParent();
-  
+
   // generate condition
   Value *cond = Condition->codegen();
+
   // convert condition to bool by comparing != 0
   Value *comp = Builder.CreateICmpNE(
       cond, ConstantInt::get(TheContext, APInt(1, 0, false)), "ifcond");
@@ -378,14 +380,14 @@ Value *IfAST::codegen() {
   BasicBlock *false_ = BasicBlock::Create(TheContext, "else");
 
   BasicBlock *end_ = BasicBlock::Create(TheContext, "end");
-  Scopes.push_back(std::map<std::string, AllocaInst*>());
-  // check if end is empty and if so, create condition branch with only true_ and end_
+  // check if end is empty and if so, create condition branch with only true_
+  // and end_
+
   if (!end_) {
     Builder.CreateCondBr(comp, true_, end_);
-  } else { 
+  } else {
     Builder.CreateCondBr(comp, true_, false_);
   }
-
   // if true
   Builder.SetInsertPoint(true_);
   IfBody->codegen();
@@ -395,6 +397,8 @@ Value *IfAST::codegen() {
   TheFunction->getBasicBlockList().push_back(false_);
   Builder.SetInsertPoint(false_);
   ElseBody->codegen();
+
+  // end
   TheFunction->getBasicBlockList().push_back(end_);
   Builder.CreateBr(end_);
   Builder.SetInsertPoint(end_);
@@ -403,12 +407,11 @@ Value *IfAST::codegen() {
   return nullptr;
 }
 
-
 Value *WhileAST::codegen() {
-  Scopes.push_back(std::map<std::string, AllocaInst*>());
+  Scopes.push_back(std::map<std::string, AllocaInst *>());
 
   Function *TheFunction = Builder.GetInsertBlock()->getParent();
-  //condition block
+  // condition block
   BasicBlock *before = BasicBlock::Create(TheContext, "before", TheFunction);
 
   // loop block
@@ -423,17 +426,15 @@ Value *WhileAST::codegen() {
   // based off of condtion
   Value *cond = Condition->codegen();
 
-
   Value *comp = Builder.CreateICmpNE(
       cond, ConstantInt::get(TheContext, APInt(1, 0, false)), "whilecond");
-  
 
   TheFunction->getBasicBlockList().push_back(loop);
 
   Builder.CreateCondBr(comp, loop, exit);
 
   Builder.SetInsertPoint(loop);
-  
+
   // work inside body
 
   Body->codegen();
@@ -445,35 +446,36 @@ Value *WhileAST::codegen() {
   Builder.CreateBr(exit);
   Builder.SetInsertPoint(exit);
 
-  
   Scopes.pop_back();
   return nullptr;
 }
 
+Value *ReturnAST::codegen() {
+  llvm::Type *FuncReturnType = Builder.getCurrentFunctionReturnType();
 
-Value *ReturnAST::codegen() { 
   if (Body) {
-    //grab value from return body codegen
+    // grab value from return body codegen
     Value *V = Body->codegen();
-    // need some code to compare type of body to type of function 
+    return_flag = 1;
+
+    if (V->getType() != FuncReturnType) {
+      std::cout << "wrong return type bozo" << std::endl;
+      exit(0);
+    }
     return Builder.CreateRet(V);
   } else {
+    return_flag = 1;
     return Builder.CreateRetVoid();
   }
-  return nullptr; 
+  return nullptr;
 }
 
-
-Value *VarDeclAST::codegen() { 
-  //Global variables
+Value *VarDeclAST::codegen() {
+  // Global variables
   if (Scopes.empty()) {
-    GlobalVariable* g = new GlobalVariable(
-      *(TheModule.get()),
-      getType(Type),
-      false,
-      GlobalValue::CommonLinkage,
-      Constant::getNullValue(getType(Type))
-    );
+    GlobalVariable *g = new GlobalVariable(
+        *(TheModule.get()), getType(Type), false, GlobalValue::CommonLinkage,
+        Constant::getNullValue(getType(Type)));
 
     GlobalVariables[Name.lexeme] = g;
     return nullptr;
@@ -482,55 +484,47 @@ Value *VarDeclAST::codegen() {
   // Local declarations
   Function *TheFunction = Builder.GetInsertBlock()->getParent();
 
-  AllocaInst* Alloca =
-    CreateEntryBlockAlloca(TheFunction, Name.lexeme, getType(Type));
-  
+  AllocaInst *Alloca =
+      CreateEntryBlockAlloca(TheFunction, Name.lexeme, getType(Type));
+
   Builder.CreateStore(Constant::getNullValue(getType(Type)), Alloca);
 
   Scopes.back()[Name.lexeme] = Alloca;
   return nullptr;
 }
 
-
-
-
-
 Value *VarAssignAST::codegen() {
   std::cout << "name of variable" << Name.lexeme << std::endl;
   Value *Val = Expr->codegen();
 
   if (!Val) {
-    
+
     return nullptr;
   }
-
-  
 
   for (int i = Scopes.size() - 1; i >= 0; i--) {
     if (Scopes[i].count(Name.lexeme) > 0) {
       Function *TheFunction = Builder.GetInsertBlock()->getParent();
-      AllocaInst* Alloca = Scopes[i][Name.lexeme];
+      AllocaInst *Alloca = Scopes[i][Name.lexeme];
       Value *CastedVal = Casting(Alloca->getAllocatedType(), Val);
       Builder.CreateStore(CastedVal, Alloca);
       Scopes[i][Name.lexeme] = Alloca;
 
-      if (i == Scopes.size() - 1) 
+      if (i == Scopes.size() - 1)
         break;
-    } 
+    }
   }
 
   if (GlobalVariables.count(Name.lexeme) > 0) {
-    
-    GlobalVariable* gAlloca = GlobalVariables.at(Name.lexeme);
 
-    Value *CastedVal = Casting(gAlloca->getValueType(),  Val);
+    GlobalVariable *gAlloca = GlobalVariables.at(Name.lexeme);
+
+    Value *CastedVal = Casting(gAlloca->getValueType(), Val);
 
     Builder.CreateStore(CastedVal, gAlloca);
 
     GlobalVariables[Name.lexeme] = gAlloca;
   }
 
-  
   return Val;
 }
-

@@ -1,4 +1,5 @@
 #include "parser.hpp"
+#include "common.hpp"
 
 //===----------------------------------------------------------------------===//
 // Parser
@@ -23,14 +24,12 @@ TOKEN getNextToken() {
 
 void putBackToken(TOKEN tok) { tok_buffer.push_front(tok); }
 
-void match(int word) {
+void match(int word, std::string symbol) {
   if (CurTok.type == word) {
-    // std::cerr << "matched " << CurTok.lexeme << std::endl;
     getNextToken();
   } else {
-    std::cerr << "Expected token " << word << " but got " << CurTok.type
-              << std::endl;
-    exit(0);
+    TOKEN tok = CurTok;
+    LogSyntaxError(tok, symbol);
   }
 }
 
@@ -104,17 +103,17 @@ void extern_list_prime(std::vector<std::unique_ptr<ASTNode>> &list) {
 
 // extern -> "extern" type_spec IDENT "(" params ")" ";"
 std::unique_ptr<ASTNode> extern_() {
-  match(EXTERN);
+  match(EXTERN, "extern");
   auto type = type_spec();
 
   TOKEN identifier = CurTok;
-  match(IDENT); // consume identifier
+  match(IDENT, "an identifier"); // consume identifier
 
-  match(LPAR); // consumer (
+  match(LPAR, "("); // consumer (
 
   auto parameters = params();
-  match(RPAR);
-  match(SC);
+  match(RPAR, ")");
+  match(SC, ";");
   auto prototype =
       std::make_unique<PrototypeAST>(type, identifier, std::move(parameters));
 
@@ -181,8 +180,8 @@ std::unique_ptr<VarDeclAST> var_decl() {
   TOKEN type = var_type();
   TOKEN name = CurTok;
   auto variable_declaration = std::make_unique<VarDeclAST>(type, name);
-  match(IDENT); // consume identifier
-  match(SC);    // consume ;
+  match(IDENT, "an identifier"); // consume identifier
+  match(SC, ";");    // consume ;
 
   return std::move(variable_declaration);
 }
@@ -191,11 +190,11 @@ std::unique_ptr<FunctionAST> fun_decl() {
   auto type = type_spec();
   TOKEN identifier = CurTok;
 
-  match(IDENT); // consume identifier
-  match(LPAR);  // consumer identifier
+  match(IDENT, "an identifier"); // consume identifier
+  match(LPAR, "(");  // consumer identifier
   std::vector<std::unique_ptr<VarDeclAST>> parameters = params();
 
-  match(RPAR);
+  match(RPAR, ")");
 
   // build function definition
   auto scope = block();
@@ -244,7 +243,7 @@ std::vector<std::unique_ptr<VarDeclAST>> params() {
     return std::move(parameter_list);
   case (VOID_TOK):
     TOKEN tok = CurTok;
-    match(VOID_TOK);
+    match(VOID_TOK, "void");
     auto void_ = std::make_unique<VarDeclAST>(tok, tok);
     parameter_list.push_back(std::move(void_));
     // parameter_list.push_back(std::move(std::make_unique<VoidASTNode>(tok)));
@@ -263,7 +262,7 @@ void param_list(std::vector<std::unique_ptr<VarDeclAST>> &list) {
 
 void param_list_prime(std::vector<std::unique_ptr<VarDeclAST>> &list) {
   if (CurTok.type != RPAR) {
-    match(COMMA);
+    match(COMMA, ",");
     auto parameter = param();
     list.push_back(std::move(parameter));
     if (CurTok.type == COMMA) {
@@ -275,13 +274,13 @@ void param_list_prime(std::vector<std::unique_ptr<VarDeclAST>> &list) {
 std::unique_ptr<VarDeclAST> param() {
   TOKEN type = var_type();
   TOKEN name = CurTok;
-  match(IDENT);
+  match(IDENT, "an identifier");
   auto parameter = std::make_unique<VarDeclAST>(type, name);
   return std::move(parameter);
 }
 
 std::unique_ptr<BlockAST> block() {
-  match(LBRA);
+  match(LBRA, "{");
   std::vector<std::unique_ptr<ASTNode>> local_declaration_list;
   std::vector<std::unique_ptr<ASTNode>> statement_list;
 
@@ -296,7 +295,7 @@ std::unique_ptr<BlockAST> block() {
   auto scope = std::make_unique<BlockAST>(std::move(local_declaration_list),
                                           std::move(statement_list));
 
-  match(RBRA);
+  match(RBRA, "}");
 
   return std::move(scope);
 }
@@ -342,9 +341,9 @@ void local_decls_prime(std::vector<std::unique_ptr<ASTNode>> &list) {
 std::unique_ptr<ASTNode> local_decl() {
   TOKEN type = var_type();
   TOKEN identifier = CurTok;
-  match(IDENT);
+  match(IDENT, "an identifier");
   auto variable_declaration = std::make_unique<VarDeclAST>(type, identifier);
-  match(SC);
+  match(SC, ";");
   return std::move(variable_declaration);
 }
 
@@ -370,7 +369,6 @@ std::unique_ptr<ASTNode> stmt() {
   case (FLOAT_LIT):
   case (IDENT):
   case (INT_LIT):
-
     return std::move(expr_stmt());
   case (LBRA):
     return std::move(block());
@@ -381,7 +379,8 @@ std::unique_ptr<ASTNode> stmt() {
   case (RETURN):
     return std::move(return_stmt());
   }
-  std::cerr << "Expected stmt" << std::endl;
+  std::cout << CurTok.type << std::endl;
+  std::cerr << "Expected stmt " << CurTok.lineNo << " " << CurTok.columnNo << std::endl;
   exit(0);
 }
 
@@ -396,18 +395,18 @@ std::unique_ptr<ASTNode> expr_stmt() {
   case (IDENT):
   case (INT_LIT):
     auto expression = expr();
-    match(SC);
+    match(SC, ";");
     return std::move(expression);
   }
-  match(SC);
+  match(SC, ";");
   return nullptr;
 }
 
 std::unique_ptr<ASTNode> while_stmt() {
-  match(WHILE);
-  match(LPAR);
+  match(WHILE, "while");
+  match(LPAR, "(");
   auto expression = expr();
-  match(RPAR);
+  match(RPAR, ")");
   auto statement = stmt();
 
   auto while_statement =
@@ -417,10 +416,10 @@ std::unique_ptr<ASTNode> while_stmt() {
 }
 
 std::unique_ptr<ASTNode> if_stmt() {
-  match(IF);
-  match(LPAR);
+  match(IF, "if");
+  match(LPAR, "(");
   auto expression = expr();
-  match(RPAR);
+  match(RPAR, ")");
   auto if_block = block();
   auto else_statement = else_stmt();
 
@@ -442,19 +441,18 @@ std::unique_ptr<ASTNode> else_stmt() {
   case (LBRA):
   case (RBRA):
   case (BOOL_LIT):
-
   case (FLOAT_LIT):
   case (IDENT):
   case (INT_LIT):
     return nullptr;
   }
-  match(ELSE);
+  match(ELSE, "else");
   auto else_block = block();
   return std::move(else_block);
 }
 
 std::unique_ptr<ASTNode> return_stmt() {
-  match(RETURN);
+  match(RETURN, "return");
   auto return_body = return_stmt_B();
   auto return_statement = std::make_unique<ReturnAST>(std::move(return_body));
 
@@ -471,10 +469,10 @@ std::unique_ptr<ASTNode> return_stmt_B() {
   case (IDENT):
   case (INT_LIT):
     auto expression = expr();
-    match(SC);
+    match(SC, ";");
     return std::move(expression);
   }
-  match(SC);
+  match(SC, ";");
   return nullptr;
 }
 
@@ -497,8 +495,8 @@ std::unique_ptr<ASTNode> expr() {
     if (lookahead.type == ASSIGN) {
       TOKEN name = CurTok;
 
-      match(IDENT);
-      match(ASSIGN);
+      match(IDENT, "an identifier");
+      match(ASSIGN, "=");
 
       auto expression = expr();
 
@@ -704,12 +702,7 @@ std::unique_ptr<ASTNode> add_val_prime(std::unique_ptr<ASTNode> lhs) {
     op = CurTok;
     getNextToken();
     auto rhs = mul_val();
-    std::cout << ((rhs) ? rhs->to_string(0) : "null") << std::endl;
     rhs = add_val_prime(std::move(rhs));
-    std::cout << ((rhs) ? rhs->to_string(0) : "null") << std::endl;
-
-    std::cout << ((lhs) ? lhs->to_string(0) : "null") << std::endl;
-
     auto bin_op =
         std::make_unique<BinaryExprAST>(op, std::move(lhs), std::move(rhs));
     return std::move(bin_op);
@@ -800,9 +793,9 @@ std::unique_ptr<ASTNode> identifiers() {
     return std::move(result);
   }
   case (LPAR):
-    match(LPAR);
+    match(LPAR, "(");
     auto expression = expr();
-    match(RPAR);
+    match(RPAR, ")");
     return std::move(expression);
   }
 
@@ -837,10 +830,10 @@ std::unique_ptr<ASTNode> identifiers_B() {
     // function call
     TOKEN callee = identifier;
 
-    match(LPAR);
+    match(LPAR, "(");
     std::vector<std::unique_ptr<ASTNode>> arguments = args();
 
-    match(RPAR);
+    match(RPAR, ")");
     auto function_call =
         std::make_unique<CallExprAST>(callee, std::move(arguments));
     return std::move(function_call);
@@ -870,7 +863,7 @@ void arg_list(std::vector<std::unique_ptr<ASTNode>> &list) {
 
 void arg_list_prime(std::vector<std::unique_ptr<ASTNode>> &list) {
   if (CurTok.type != RPAR) {
-    match(COMMA);
+    match(COMMA, ",");
     auto expression = expr();
     list.push_back(std::move(expression));
     arg_list_prime(list);

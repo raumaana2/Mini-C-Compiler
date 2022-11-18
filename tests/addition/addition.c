@@ -6,12 +6,12 @@ int addition(int n, int m){
 	result = n + m;
   
 
-  if(n == 4) {
+  if(n==4) {
     print_int(n+m);
   }
-  else {
-    print_int(n*m);
-  }
+  // else {
+  //   print_int(n*m);
+  // }
 
   return result;
 }

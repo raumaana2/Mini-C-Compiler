@@ -4,6 +4,7 @@
 #include "common.hpp"
 #include "lexer.hpp"
 #include "ast_node.hpp"
+#include "error_reporting.hpp"
 
 TOKEN getNextToken();
 void putBackToken(TOKEN tok);
