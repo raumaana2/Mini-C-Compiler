@@ -11,6 +11,11 @@ void LogSyntaxError(TOKEN tok, std::string message) {
     LinePrinter(tok);
 }
 
+void LogSemanticError(TOKEN tok, std::string message) {
+    std::cerr << fileName <<  ":" << tok.lineNo << ":" << tok.columnNo << " \033[31merror\033[0m: " << message << std::endl;
+    LinePrinter(tok);
+}
+
 
 
 void LinePrinter(TOKEN tok) {
@@ -22,7 +27,7 @@ void LinePrinter(TOKEN tok) {
         ++i;
     }
     int tab_found = 0;
-    //consider the tab character which is treated as one character in the lexer but multiple characters
+    //consider the tab character which is treated as one character in the lexer
     //but treated as multiple characters by this function  
     if (line.find("\t") != std::string::npos) {
         tab_found = 1;
@@ -38,9 +43,9 @@ void LinePrinter(TOKEN tok) {
     exit(0);
 }
 
-void LogWarnings() {
-    while (!WarningStack.empty()) {
-        std::cout << WarningStack.top() << std::endl;
-        WarningStack.pop();
-    }
-}
+// void LogWarnings() {
+//     while (!WarningStack.empty()) {
+//         std::cout << WarningStack.top() << std::endl;
+//         WarningStack.pop();
+//     }
+// }

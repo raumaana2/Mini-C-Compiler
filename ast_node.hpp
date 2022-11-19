@@ -50,11 +50,12 @@ public:
 class BlockAST : public ASTNode {
   std::vector<std::unique_ptr<ASTNode>> LocalDecls;
   std::vector<std::unique_ptr<ASTNode>> StmtList;
+  TOKEN Tok;
 
 public:
-  BlockAST(std::vector<std::unique_ptr<ASTNode>> localDecls,
+  BlockAST(TOKEN tok, std::vector<std::unique_ptr<ASTNode>> localDecls,
            std::vector<std::unique_ptr<ASTNode>> stmtList)
-      : LocalDecls(std::move(localDecls)), StmtList(std::move(stmtList)) {}
+      : Tok(tok) ,LocalDecls(std::move(localDecls)), StmtList(std::move(stmtList)) {}
 
   Value *codegen() override;
   std::string to_string(int depth) const override;
@@ -201,9 +202,9 @@ public:
 // class for return statement structure
 class ReturnAST : public ASTNode {
   std::unique_ptr<ASTNode> Body;
-
+  TOKEN Tok;
 public:
-  ReturnAST(std::unique_ptr<ASTNode> body) : Body(std::move(body)) {}
+  ReturnAST(TOKEN tok, std::unique_ptr<ASTNode> body) : Tok(tok), Body(std::move(body)) {}
 
   Value* codegen() override; 
 

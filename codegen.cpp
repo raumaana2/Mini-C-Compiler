@@ -7,7 +7,7 @@ using namespace llvm::sys;
 LLVMContext TheContext;
 IRBuilder<> Builder(TheContext);
 std::unique_ptr<Module> TheModule;
-std::stack<std::string> WarningStack;
+// std::stack<std::string> WarningStack;
 
 int return_flag = 0;
 
@@ -20,7 +20,7 @@ AllocaInst *CreateEntryBlockAlloca(Function *TheFunction,
   return TmpB.CreateAlloca(type, 0, VarName.c_str());
 }
 
-Value *Casting(Type *VarType, Value *NewVal) {
+Value *Casting(Type *VarType, Value *NewVal, TOKEN tok) {
   // create expression into 32 bit integer
   if (VarType->isIntegerTy(32)) {
     if (NewVal->getType()->isIntegerTy(32)) {
@@ -103,6 +103,11 @@ Value *BlockAST::codegen() {
     if (return_flag != 1) {
       Builder.CreateRetVoid();
     }
+  } else if (Scopes.size() == 2 && !(FuncReturnType->isVoidTy())) {
+    if (return_flag != 1) {
+      TOKEN tok = Tok;
+      LogSemanticError(tok, "no return for non-void function");
+    }
   }
   Scopes.pop_back();
   return nullptr;
@@ -136,7 +141,7 @@ Value *LiteralASTNode::codegen() {
       GlobalVariable *G = GlobalVariables[Tok.lexeme];
       if (!G) {
         TOKEN t = Tok;
-        LogSemanticError(t, "use of undeclared identifier " + t.lexeme);
+        LogSemanticError(t, "use of undeclared identifier \"" + t.lexeme + "\"");
       }
       return Builder.CreateLoad(G->getValueType(), G, Tok.lexeme);
     } else {
@@ -159,8 +164,8 @@ Value *BinaryExprAST::codegen() {
   case (PLUS):
     // if either are floating point, we want to convert both to floating point
     if (left->getType()->isFloatTy() || right->getType()->isFloatTy()) {
-      left = Casting(Type::getFloatTy(TheContext), left);
-      right = Casting(Type::getFloatTy(TheContext), right);
+      left = Casting(Type::getFloatTy(TheContext), left, Op);
+      right = Casting(Type::getFloatTy(TheContext), right, Op);
 
       return Builder.CreateFAdd(left, right, "faddtmp");
     }
@@ -171,8 +176,8 @@ Value *BinaryExprAST::codegen() {
   case (MINUS):
     // if either are floating point, we want to convert both to floating point
     if (left->getType()->isFloatTy() || right->getType()->isFloatTy()) {
-      left = Casting(Type::getFloatTy(TheContext), left);
-      right = Casting(Type::getFloatTy(TheContext), right);
+      left = Casting(Type::getFloatTy(TheContext), left, Op);
+      right = Casting(Type::getFloatTy(TheContext), right, Op);
       return Builder.CreateFSub(left, right, "fsubtmp");
     }
     // otherwise there are no floating points so we do integer add which casts
@@ -180,8 +185,8 @@ Value *BinaryExprAST::codegen() {
     return Builder.CreateSub(left, right, "isubtmp");
   case (ASTERIX):
     if (left->getType()->isFloatTy() || right->getType()->isFloatTy()) {
-      left = Casting(Type::getFloatTy(TheContext), left);
-      right = Casting(Type::getFloatTy(TheContext), right);
+      left = Casting(Type::getFloatTy(TheContext), left, Op);
+      right = Casting(Type::getFloatTy(TheContext), right, Op);
       return Builder.CreateFMul(left, right, "fmultmp");
     }
     // otherwise there are no floating points so we do integer add which casts
@@ -189,8 +194,8 @@ Value *BinaryExprAST::codegen() {
     return Builder.CreateMul(left, right, "imultmp");
   case (DIV):
     if (left->getType()->isFloatTy() || right->getType()->isFloatTy()) {
-      left = Casting(Type::getFloatTy(TheContext), left);
-      right = Casting(Type::getFloatTy(TheContext), right);
+      left = Casting(Type::getFloatTy(TheContext), left, Op);
+      right = Casting(Type::getFloatTy(TheContext), right, Op);
       return Builder.CreateFDiv(left, right, "fdivtmp");
     }
     // otherwise there are no floating points so we do integer add which casts
@@ -198,8 +203,8 @@ Value *BinaryExprAST::codegen() {
     return Builder.CreateUDiv(left, right, "idivtmp");
   case (MOD):
     if (left->getType()->isFloatTy() || right->getType()->isFloatTy()) {
-      left = Casting(Type::getFloatTy(TheContext), left);
-      right = Casting(Type::getFloatTy(TheContext), right);
+      left = Casting(Type::getFloatTy(TheContext), left, Op);
+      right = Casting(Type::getFloatTy(TheContext), right, Op);
       return Builder.CreateFRem(left, right, "fmodtmp");
     }
     // otherwise there are no floating points so we do integer add which casts
@@ -208,37 +213,37 @@ Value *BinaryExprAST::codegen() {
 
   case (EQ):
 
-    left = Casting(Type::getFloatTy(TheContext), left);
-    right = Casting(Type::getFloatTy(TheContext), right);
+    left = Casting(Type::getFloatTy(TheContext), left, Op);
+    right = Casting(Type::getFloatTy(TheContext), right, Op);
     return Builder.CreateFCmpOEQ(left, right, "feqtmp");
   case (NE):
-    left = Casting(Type::getFloatTy(TheContext), left);
-    right = Casting(Type::getFloatTy(TheContext), right);
+    left = Casting(Type::getFloatTy(TheContext), left, Op);
+    right = Casting(Type::getFloatTy(TheContext), right, Op);
     return Builder.CreateFCmpONE(left, right, "fneqtmp");
   case (LE):
-    left = Casting(Type::getFloatTy(TheContext), left);
-    right = Casting(Type::getFloatTy(TheContext), right);
+    left = Casting(Type::getFloatTy(TheContext), left, Op);
+    right = Casting(Type::getFloatTy(TheContext), right, Op);
     return Builder.CreateFCmpOLE(left, right, "fletmp");
   case (LT):
-    left = Casting(Type::getFloatTy(TheContext), left);
-    right = Casting(Type::getFloatTy(TheContext), right);
+    left = Casting(Type::getFloatTy(TheContext), left, Op);
+    right = Casting(Type::getFloatTy(TheContext), right, Op);
     return Builder.CreateFCmpOLT(left, right, "flttmp");
   case (GE):
-    left = Casting(Type::getFloatTy(TheContext), left);
-    right = Casting(Type::getFloatTy(TheContext), right);
+    left = Casting(Type::getFloatTy(TheContext), left, Op);
+    right = Casting(Type::getFloatTy(TheContext), right, Op);
     return Builder.CreateFCmpOGE(left, right, "fgetmp");
   case (GT):
 
-    left = Casting(Type::getFloatTy(TheContext), left);
-    right = Casting(Type::getFloatTy(TheContext), right);
+    left = Casting(Type::getFloatTy(TheContext), left, Op);
+    right = Casting(Type::getFloatTy(TheContext), right, Op);
     return Builder.CreateFCmpOGT(left, right, "ffttmp");
   case (OR):
-    left = Casting(Type::getInt1Ty(TheContext), left);
-    right = Casting(Type::getInt1Ty(TheContext), right);
+    left = Casting(Type::getInt1Ty(TheContext), left, Op);
+    right = Casting(Type::getInt1Ty(TheContext), right, Op);
     return Builder.CreateOr(left, right, "ortmp");
   case (AND):
-    left = Casting(Type::getInt1Ty(TheContext), left);
-    right = Casting(Type::getInt1Ty(TheContext), right);
+    left = Casting(Type::getInt1Ty(TheContext), left, Op);
+    right = Casting(Type::getInt1Ty(TheContext), right, Op);
     return Builder.CreateAnd(left, right, "andtmp");
   }
   return nullptr;
@@ -252,14 +257,14 @@ Value *UnaryExprAST::codegen() {
 
   switch (Op.type) {
   case (NOT):
-    V = Casting(Type::getInt1Ty(TheContext), V);
+    V = Casting(Type::getInt1Ty(TheContext), V, Op);
     return Builder.CreateNot(V, "nottmp");
   case (MINUS):
     if (V->getType()->isIntegerTy(1) || V->getType()->isIntegerTy(32)) {
-      V = Casting(Type::getInt32Ty(TheContext), V);
+      V = Casting(Type::getInt32Ty(TheContext), V, Op);
       return Builder.CreateNeg(V, "inegtmp");
     }
-    V = Casting(Type::getFloatTy(TheContext), V);
+    V = Casting(Type::getFloatTy(TheContext), V, Op);
     return Builder.CreateFNeg(V, "fnegtmp");
   }
 
@@ -270,11 +275,21 @@ Value *CallExprAST::codegen() {
   Function *CalleeF = TheModule->getFunction(Callee.lexeme);
 
   //no such function exist
-  if (!CalleeF)
+  if (!CalleeF) {
+    TOKEN t = Callee;
+    LogSemanticError(t, "undefined reference to \"" + t.lexeme + "\""); 
     return nullptr;
+  }
 
-  if (CalleeF->arg_size() != Args.size())
-    return nullptr;
+  if (CalleeF->arg_size() < Args.size()) {
+    TOKEN t = Callee;
+    std::string message = "too many arguments to function call, expected " + std::to_string(CalleeF->arg_size()) + " but got " + std::to_string(Args.size());
+    LogSemanticError(t, message);
+  } else if (CalleeF->arg_size() > Args.size()) {
+    TOKEN t = Callee;
+    std::string message = "too few arguments to function call, expected " + std::to_string(CalleeF->arg_size()) + " but got " + std::to_string(Args.size());
+    LogSemanticError(t, message);
+  }
 
   std::vector<Value *> ArgsV;
 
@@ -285,7 +300,7 @@ Value *CallExprAST::codegen() {
   }
 
   for (int i = 0; i < Args.size(); i++) {
-    ArgsV.push_back(Casting(ParameterTypes[i], Args[i]->codegen()));
+    ArgsV.push_back(Casting(ParameterTypes[i], Args[i]->codegen(), Callee));
   }
 
   return Builder.CreateCall(CalleeF, ArgsV, "calltmp");
@@ -380,7 +395,7 @@ Value *IfAST::codegen() {
   BasicBlock *false_ = BasicBlock::Create(TheContext, "else");
 
   BasicBlock *end_ = BasicBlock::Create(TheContext, "end");
-  // check if end is empty and if so, create condition branch with only true_
+  // check if else is empty and if so, create condition branch with only true_
   // and end_
 
   if (!ElseBody) {
@@ -460,8 +475,8 @@ Value *ReturnAST::codegen() {
     return_flag = 1;
 
     if (V->getType() != FuncReturnType) {
-      std::cout << "wrong return type bozo" << std::endl;
-      exit(0);
+      TOKEN tok = Tok;
+      LogSemanticError(tok, "return type different to prototype type");
     }
     return Builder.CreateRet(V);
   } else {
@@ -477,7 +492,7 @@ Value *VarDeclAST::codegen() {
     if (GlobalVariables.count(Name.lexeme) >
         0) { // error redefinition of global variable
       TOKEN t = Name;
-      LogSemanticError(t, "redefinition of variable " + t.lexeme);
+      LogSemanticError(t, "redefinition of variable \"" + t.lexeme + "\"");
     }
 
     GlobalVariable *g = new GlobalVariable(
@@ -515,7 +530,7 @@ Value *VarAssignAST::codegen() {
     if (Scopes[i].count(Name.lexeme) > 0) {
       Function *TheFunction = Builder.GetInsertBlock()->getParent();
       AllocaInst *Alloca = Scopes[i][Name.lexeme];
-      Value *CastedVal = Casting(Alloca->getAllocatedType(), Val);
+      Value *CastedVal = Casting(Alloca->getAllocatedType(), Val, Name);
       Builder.CreateStore(CastedVal, Alloca);
       Scopes[i][Name.lexeme] = Alloca;
 
@@ -532,7 +547,7 @@ Value *VarAssignAST::codegen() {
 
     GlobalVariable *gAlloca = GlobalVariables.at(Name.lexeme);
 
-    Value *CastedVal = Casting(gAlloca->getValueType(), Val);
+    Value *CastedVal = Casting(gAlloca->getValueType(), Val, Name);
 
     Builder.CreateStore(CastedVal, gAlloca);
 
@@ -543,7 +558,7 @@ Value *VarAssignAST::codegen() {
   // error, assigning value to undeclared variable.
   if (found_flag != 1) {
     TOKEN t = Name;
-    LogSemanticError(t, "use of undeclared identifier " + t.lexeme);
+    LogSemanticError(t, "use of undeclared identifier \"" + t.lexeme + "\"");
     return nullptr;
   }
 

@@ -2,7 +2,7 @@
 extern int print_int(int X);
 
 int addition(int n, int m){
-	int result
+	int result;
   result = n + m;
   
 

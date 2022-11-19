@@ -288,11 +288,11 @@ std::unique_ptr<BlockAST> block() {
   // make copies of the lists
   //  auto local_declarations = local_declaration_list;
   //  auto statements = statement_list;
-
-  auto scope = std::make_unique<BlockAST>(std::move(local_declaration_list),
+  TOKEN tok = CurTok;
+  match(RBRA, "}");
+  auto scope = std::make_unique<BlockAST>(tok, std::move(local_declaration_list),
                                           std::move(statement_list));
 
-  match(RBRA, "}");
 
   return std::move(scope);
 }
@@ -448,9 +448,10 @@ std::unique_ptr<ASTNode> else_stmt() {
 }
 
 std::unique_ptr<ASTNode> return_stmt() {
+  TOKEN tok = CurTok;
   match(RETURN, "return");
   auto return_body = return_stmt_B();
-  auto return_statement = std::make_unique<ReturnAST>(std::move(return_body));
+  auto return_statement = std::make_unique<ReturnAST>(tok,std::move(return_body));
 
   return std::move(return_statement);
 }
