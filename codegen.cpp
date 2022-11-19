@@ -97,7 +97,6 @@ Value *BlockAST::codegen() {
       }
       StmtList[i]->codegen();
     }
-    
   }
   if (Scopes.size() == 2 && FuncReturnType->isVoidTy()) {
     if (return_flag != 1) {
@@ -134,7 +133,7 @@ Value *LiteralASTNode::codegen() {
     if (!V) {
 
       GlobalVariable *G = GlobalVariables[Tok.lexeme];
-      if (!G)
+      if (!G) // another case of undeclared variable
         return nullptr;
       return Builder.CreateLoad(G->getValueType(), G, Tok.lexeme);
     } else {
@@ -355,12 +354,9 @@ Function *FunctionAST::codegen() {
 
   verifyFunction(*TheFunction);
 
-
-
   Scopes.pop_back();
 
   return TheFunction;
-
 }
 
 // code generation for IfElse/If statments
@@ -383,7 +379,7 @@ Value *IfAST::codegen() {
   // check if end is empty and if so, create condition branch with only true_
   // and end_
 
-  if (!end_) {
+  if (!ElseBody) {
     Builder.CreateCondBr(comp, true_, end_);
   } else {
     Builder.CreateCondBr(comp, true_, false_);
@@ -396,7 +392,7 @@ Value *IfAST::codegen() {
   // if false
   TheFunction->getBasicBlockList().push_back(false_);
   Builder.SetInsertPoint(false_);
-  if (ElseBody) 
+  if (ElseBody)
     ElseBody->codegen();
 
   // end
@@ -474,6 +470,11 @@ Value *ReturnAST::codegen() {
 Value *VarDeclAST::codegen() {
   // Global variables
   if (Scopes.empty()) {
+    if (GlobalVariables.count(Name.lexeme) >
+        0) { // error redefinition of global variable
+      return nullptr;
+    }
+
     GlobalVariable *g = new GlobalVariable(
         *(TheModule.get()), getType(Type), false, GlobalValue::CommonLinkage,
         Constant::getNullValue(getType(Type)));
@@ -495,14 +496,16 @@ Value *VarDeclAST::codegen() {
 }
 
 Value *VarAssignAST::codegen() {
-  std::cout << "name of variable" << Name.lexeme << std::endl;
   Value *Val = Expr->codegen();
+
+  int found_flag = 0;
 
   if (!Val) {
 
     return nullptr;
   }
 
+  // want to reflect change for all scopes
   for (int i = Scopes.size() - 1; i >= 0; i--) {
     if (Scopes[i].count(Name.lexeme) > 0) {
       Function *TheFunction = Builder.GetInsertBlock()->getParent();
@@ -511,6 +514,10 @@ Value *VarAssignAST::codegen() {
       Builder.CreateStore(CastedVal, Alloca);
       Scopes[i][Name.lexeme] = Alloca;
 
+      found_flag = 1;
+
+      // we break here as the variable has just been declared in this current
+      // scope
       if (i == Scopes.size() - 1)
         break;
     }
@@ -525,7 +532,12 @@ Value *VarAssignAST::codegen() {
     Builder.CreateStore(CastedVal, gAlloca);
 
     GlobalVariables[Name.lexeme] = gAlloca;
+
+    found_flag = 1;
   }
+  // error, assigning value to undeclared variable.
+  if (found_flag != 1)
+    return nullptr;
 
   return Val;
 }

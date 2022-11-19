@@ -19,7 +19,7 @@ entry:
   %i32tof = sitofp i32 %n5 to float
   %feqtmp = fcmp oeq float %i32tof, 4.000000e+00
   %ifcond = icmp ne i1 %feqtmp, false
-  br i1 %ifcond, label %then, label %else
+  br i1 %ifcond, label %then, label %end
 
 then:                                             ; preds = %entry
   %n6 = load i32, ptr %n1, align 4
@@ -28,10 +28,8 @@ then:                                             ; preds = %entry
   %calltmp = call i32 @print_int(i32 %iaddtmp8)
   br label %end
 
-else:                                             ; preds = %entry
+else:                                             ; No predecessors!
   br label %end
 
-end:                                              ; preds = %else, %then
-  %result9 = load i32, ptr %result, align 4
-  ret i32 %result9
+end:                                              ; preds = %else, %then, %entry
 }

@@ -4,6 +4,8 @@ using namespace llvm::sys;
 
 FILE *pFile;
 
+std::string fileName;
+
 // //===----------------------------------------------------------------------===//
 // // AST Printer
 // //===----------------------------------------------------------------------===//
@@ -21,6 +23,9 @@ inline llvm::raw_ostream &operator<<(llvm::raw_ostream &os,
 int main(int argc, char **argv) {
   if (argc == 2) {
     pFile = fopen(argv[1], "r");
+    fileName = argv[1];
+    fileName.erase(std::remove(fileName.begin(), fileName.end(), '\n'), fileName.end());
+
     if (pFile == NULL)
       perror("Error opening file");
   } else {

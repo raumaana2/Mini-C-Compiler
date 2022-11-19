@@ -37,6 +37,7 @@
 #include <system_error>
 #include <utility>
 #include <vector>
+#include <fstream>
 
 
 using namespace llvm;
@@ -115,6 +116,8 @@ struct TOKEN {
 
 
 extern FILE *pFile;
+
+extern std::string fileName;
 
 //===----------------------------------------------------------------------===//
 // Lexer

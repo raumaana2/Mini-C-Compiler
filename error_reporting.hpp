@@ -4,12 +4,14 @@
 #include "common.hpp"
 
 
+void LinePrinter(TOKEN tok);
 
-std::string LogSyntaxError(TOKEN tok, std::string symbol);
+void LogSymbolError(TOKEN tok, std::string symbol);
 
-std::string LogSemanticError();
+void LogSemanticError();
 
-void PrintError();
+void LogSyntaxError(TOKEN tok, std::string message);
+
 
 
 

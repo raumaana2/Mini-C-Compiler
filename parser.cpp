@@ -1,5 +1,6 @@
 #include "parser.hpp"
 #include "common.hpp"
+#include "error_reporting.hpp"
 
 //===----------------------------------------------------------------------===//
 // Parser
@@ -29,7 +30,7 @@ void match(int word, std::string symbol) {
     getNextToken();
   } else {
     TOKEN tok = CurTok;
-    LogSyntaxError(tok, symbol);
+    LogSymbolError(tok, symbol);
   }
 }
 
@@ -44,8 +45,8 @@ std::unique_ptr<ASTNode> parser() {
   case (EOF_TOK):
     return std::move(program_scope);
   default:
-    // error
-    exit(0);
+    TOKEN tok = CurTok;
+    LogSyntaxError(tok, "Expected EOF");
   }
 }
 
@@ -66,12 +67,10 @@ std::unique_ptr<ASTNode> program() {
                                             std::move(decl_vector));
     return std::move(scope);
   }
-  default:
-    std::cerr << "Expected extern or bool or float or int or void "
-              << std::endl;
-
-    exit(0);
+  
   }
+  TOKEN tok = CurTok;
+  LogSyntaxError(tok, "expected extern or bool or float or int or void");
 }
 
 // extern_list -> extern extern_list_prime
@@ -96,9 +95,8 @@ void extern_list_prime(std::vector<std::unique_ptr<ASTNode>> &list) {
     extern_list_prime(list);
     return;
   }
-
-  std::cerr << "Expected extern or int or float or bool or void" << std::endl;
-  exit(0);
+  TOKEN tok = CurTok;
+  LogSyntaxError(tok, "expected extern or bool or float or int or void");
 }
 
 // extern -> "extern" type_spec IDENT "(" params ")" ";"
@@ -171,8 +169,8 @@ std::unique_ptr<ASTNode> decl() {
       return fun_decl();
     }
   }
-  std::cerr << "expected decl() but got " << CurTok.lexeme << std::endl;
-  exit(0);
+  TOKEN tok = CurTok;
+  LogSyntaxError(tok, "expected a function or variable declaration");
 }
 
 // var_decl -> var_type IDENT ";"
@@ -215,8 +213,8 @@ TOKEN var_type() {
     getNextToken(); // consume type token
     return type;
   }
-  std::cerr << "Expected extern or int or float or bool or void" << std::endl;
-  exit(0);
+  TOKEN tok = CurTok;
+  LogSyntaxError(tok, "expected bool or float or int or void");
 }
 
 TOKEN type_spec() {
@@ -249,9 +247,8 @@ std::vector<std::unique_ptr<VarDeclAST>> params() {
     // parameter_list.push_back(std::move(std::make_unique<VoidASTNode>(tok)));
     return std::move(parameter_list);
   }
-  // error
-  std::cerr << "expected params()" << std::endl;
-  exit(0);
+  TOKEN tok = CurTok;
+  LogSyntaxError(tok, "expected \"(\" or \"bool\" or \"float\" or \"int\" or \"void\"");
 }
 
 void param_list(std::vector<std::unique_ptr<VarDeclAST>> &list) {
@@ -379,9 +376,8 @@ std::unique_ptr<ASTNode> stmt() {
   case (RETURN):
     return std::move(return_stmt());
   }
-  std::cout << CurTok.type << std::endl;
-  std::cerr << "Expected stmt " << CurTok.lineNo << " " << CurTok.columnNo << std::endl;
-  exit(0);
+  TOKEN tok = CurTok;
+  LogSyntaxError(tok, "expected one of \"!\", \"(\", \"-\", \";\", boolean literal, float literal, integer literal, identifier, \"{\", \"if\", \"while\", \"return\"");
 }
 
 std::unique_ptr<ASTNode> expr_stmt() {
@@ -517,9 +513,9 @@ std::unique_ptr<ASTNode> expr() {
     auto expression = or_val();
     return std::move(expression);
   }
+  TOKEN tok = CurTok;
+  LogSyntaxError(tok, "expected a variable assignment or expression");
 
-  std::cerr << "expected a variable assignment or expression" << std::endl;
-  exit(0);
 }
 
 std::unique_ptr<ASTNode> or_val() {
@@ -551,9 +547,8 @@ std::unique_ptr<ASTNode> or_val_prime(std::unique_ptr<ASTNode> lhs) {
         std::make_unique<BinaryExprAST>(op, std::move(lhs), std::move(rhs));
     return std::move(bin_op);
   }
-  // error
-  std::cerr << "expected expression" << std::endl;
-  exit(0);
+  TOKEN tok = CurTok;  
+  LogSyntaxError(tok, "expected one of \")\", \";\", \"||\"");
 }
 
 std::unique_ptr<ASTNode> and_val() {
@@ -587,8 +582,8 @@ std::unique_ptr<ASTNode> and_val_prime(std::unique_ptr<ASTNode> lhs) {
         std::make_unique<BinaryExprAST>(op, std::move(lhs), std::move(rhs));
     return std::move(bin_op);
   }
-  std::cerr << "and_val" << std::endl;
-  exit(0);
+  TOKEN tok = CurTok;
+  LogSyntaxError(tok, "expected one of \")\", \";\", \"||\", \"&&\"");
 }
 
 std::unique_ptr<ASTNode> eq_val() {
@@ -625,8 +620,8 @@ std::unique_ptr<ASTNode> eq_val_prime(std::unique_ptr<ASTNode> lhs) {
         std::make_unique<BinaryExprAST>(op, std::move(lhs), std::move(rhs));
     return std::move(bin_op);
   }
-  std::cerr << "eq_val" << std::endl;
-  exit(0);
+  TOKEN tok = CurTok;
+  LogSyntaxError(tok, "expected one of \")\", \";\", \"||\", \"&&\", \"==\", \"!=\"");
 }
 
 std::unique_ptr<ASTNode> comp_val() {
@@ -666,8 +661,8 @@ std::unique_ptr<ASTNode> comp_val_prime(std::unique_ptr<ASTNode> lhs) {
         std::make_unique<BinaryExprAST>(op, std::move(lhs), std::move(rhs));
     return std::move(bin_op);
   }
-  std::cerr << "comp_val" << std::endl;
-  exit(0);
+  TOKEN tok = CurTok;
+  LogSyntaxError(tok, "expected one of \")\", \";\", \"||\", \"&&\", \"<\", \"<=\", \">\", \">=\"");
 }
 
 std::unique_ptr<ASTNode> add_val() {
@@ -707,8 +702,9 @@ std::unique_ptr<ASTNode> add_val_prime(std::unique_ptr<ASTNode> lhs) {
         std::make_unique<BinaryExprAST>(op, std::move(lhs), std::move(rhs));
     return std::move(bin_op);
   }
-  std::cerr << "add_val" << std::endl;
-  exit(0);
+  TOKEN tok = CurTok;
+  LogSyntaxError(tok, "expected one of \")\", \";\", \"||\", \"&&\", \"<\", \"<=\", \">\", \">=\", \"+\", \"-\"");
+
 }
 
 std::unique_ptr<ASTNode> mul_val() {
@@ -751,8 +747,8 @@ std::unique_ptr<ASTNode> mul_val_prime(std::unique_ptr<ASTNode> lhs) {
         std::make_unique<BinaryExprAST>(op, std::move(lhs), std::move(rhs));
     return std::move(bin_op);
   }
-  std::cerr << "mul_val" << std::endl;
-  exit(0);
+  TOKEN tok = CurTok;
+  LogSyntaxError(tok, "expected one of \")\", \";\", \"||\", \"&&\", \"<\", \"<=\", \">\", \">=\", \"+\", \"-\", \"*\", \"/\", \"%\"");
 }
 
 std::unique_ptr<ASTNode> unary() {
@@ -774,8 +770,8 @@ std::unique_ptr<ASTNode> unary() {
 
     return std::move(unary_expression);
   }
-  std::cerr << "unary" << std::endl;
-  exit(0);
+  TOKEN tok = CurTok;
+  LogSyntaxError(tok, "expected one of \"(\", boolean literal, float literal, indentifier, int literal, \"-\", \"!\"");
 }
 
 std::unique_ptr<ASTNode> identifiers() {
@@ -798,9 +794,9 @@ std::unique_ptr<ASTNode> identifiers() {
     match(RPAR, ")");
     return std::move(expression);
   }
+  TOKEN tok = CurTok;
+  LogSyntaxError(tok, "expected one of \"(\", boolean literal, float literal, indentifier, int literal");
 
-  std::cerr << "expected identifier" << std::endl;
-  exit(0);
 }
 
 std::unique_ptr<ASTNode> identifiers_B() {
@@ -838,9 +834,9 @@ std::unique_ptr<ASTNode> identifiers_B() {
         std::make_unique<CallExprAST>(callee, std::move(arguments));
     return std::move(function_call);
   }
+  TOKEN tok = CurTok;
+  LogSyntaxError(tok, "expected one of \"(\", \")\", \";\", \"||\", \"&&\", \"<\", \"<=\", \">\", \">=\", \"+\", \"-\", \"*\", \"/\", \"%\"");
 
-  std::cerr << "expected (" << std::endl;
-  exit(0);
 }
 
 std::vector<std::unique_ptr<ASTNode>> args() {
