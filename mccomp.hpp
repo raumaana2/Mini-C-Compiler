@@ -5,6 +5,7 @@
 #include "lexer.hpp"
 #include "parser.hpp"
 #include "ast_node.hpp"
+#include "error_reporting.hpp"
 
 
 #endif

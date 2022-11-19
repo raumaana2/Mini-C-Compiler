@@ -38,6 +38,7 @@
 #include <utility>
 #include <vector>
 #include <fstream>
+#include <stack>
 
 
 using namespace llvm;

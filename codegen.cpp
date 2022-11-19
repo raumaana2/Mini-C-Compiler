@@ -1,5 +1,5 @@
 #include "codegen.hpp"
-#include <llvm/IR/GlobalVariable.h>
+#include "error_reporting.hpp"
 
 using namespace llvm;
 using namespace llvm::sys;
@@ -7,6 +7,7 @@ using namespace llvm::sys;
 LLVMContext TheContext;
 IRBuilder<> Builder(TheContext);
 std::unique_ptr<Module> TheModule;
+std::stack<std::string> WarningStack;
 
 int return_flag = 0;
 
@@ -133,8 +134,10 @@ Value *LiteralASTNode::codegen() {
     if (!V) {
 
       GlobalVariable *G = GlobalVariables[Tok.lexeme];
-      if (!G) // another case of undeclared variable
-        return nullptr;
+      if (!G) {
+        TOKEN t = Tok;
+        LogSemanticError(t, "use of undeclared identifier " + t.lexeme);
+      }
       return Builder.CreateLoad(G->getValueType(), G, Tok.lexeme);
     } else {
       return Builder.CreateLoad(V->getAllocatedType(), V, Tok.lexeme);
@@ -266,6 +269,7 @@ Value *UnaryExprAST::codegen() {
 Value *CallExprAST::codegen() {
   Function *CalleeF = TheModule->getFunction(Callee.lexeme);
 
+  //no such function exist
   if (!CalleeF)
     return nullptr;
 
@@ -472,7 +476,8 @@ Value *VarDeclAST::codegen() {
   if (Scopes.empty()) {
     if (GlobalVariables.count(Name.lexeme) >
         0) { // error redefinition of global variable
-      return nullptr;
+      TOKEN t = Name;
+      LogSemanticError(t, "redefinition of variable " + t.lexeme);
     }
 
     GlobalVariable *g = new GlobalVariable(
@@ -536,8 +541,11 @@ Value *VarAssignAST::codegen() {
     found_flag = 1;
   }
   // error, assigning value to undeclared variable.
-  if (found_flag != 1)
+  if (found_flag != 1) {
+    TOKEN t = Name;
+    LogSemanticError(t, "use of undeclared identifier " + t.lexeme);
     return nullptr;
+  }
 
   return Val;
 }

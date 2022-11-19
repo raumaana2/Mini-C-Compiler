@@ -11,6 +11,8 @@ void LogSyntaxError(TOKEN tok, std::string message) {
     LinePrinter(tok);
 }
 
+
+
 void LinePrinter(TOKEN tok) {
     std::ifstream input(fileName);
     std::string line;
@@ -32,6 +34,13 @@ void LinePrinter(TOKEN tok) {
     std::string whitespace(col_no - 1, ' ');
     std::string tab(tab_found, '\t');
     std::cerr << tab << whitespace << "\033[32m^\033[0m"<< std::endl;
+    input.close();
     exit(0);
 }
 
+void LogWarnings() {
+    while (!WarningStack.empty()) {
+        std::cout << WarningStack.top() << std::endl;
+        WarningStack.pop();
+    }
+}
