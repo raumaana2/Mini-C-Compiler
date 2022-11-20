@@ -1,4 +1,5 @@
 #include "codegen.hpp"
+#include "ast_node.hpp"
 
 using namespace llvm;
 using namespace llvm::sys;
@@ -198,6 +199,84 @@ Value *LiteralASTNode::codegen() {
 
   return nullptr;
 }
+
+
+Value *LazyOr(std::unique_ptr<ASTNode> lhs, std::unique_ptr<ASTNode> rhs, TOKEN tok) {
+  Function *TheFunction = Builder.GetInsertBlock()->getParent();
+  Value *truth = ConstantInt::get(TheContext, APInt(1, 0, false));
+  Value *cond = Casting(Type::getInt1Ty(TheContext) ,lhs->codegen(), tok, false);
+
+
+  Value *comp = Builder.CreateICmpNE(
+      cond, ConstantInt::get(TheContext, APInt(1, 0, false)), "lazyorleft");
+
+  BasicBlock *rhs_ = BasicBlock::Create(TheContext, "orlhsf", TheFunction);
+  BasicBlock *true_ = BasicBlock::Create(TheContext, "orlhst");
+  BasicBlock *end_ = BasicBlock::Create(TheContext, "orend");
+
+  //if left true then jump to true_ branch which sets truth to true
+  // otherwise go check if rhs is true
+  Builder.CreateCondBr(comp, true_, rhs_);
+
+  Builder.SetInsertPoint(rhs_);
+  Value *right_cond = Casting(Type::getInt1Ty(TheContext) ,rhs->codegen(), tok, false);
+  Value *right_comp = Builder.CreateICmpNE(
+      right_cond, ConstantInt::get(TheContext, APInt(1, 0, false)), "lazyorright");
+  //check if right is true and if so, then set truth to true or just end straight away
+  Builder.CreateCondBr(right_comp, true_, end_);
+
+  TheFunction->getBasicBlockList().push_back(true_);
+  Builder.SetInsertPoint(true_);
+  truth = ConstantInt::get(TheContext, APInt(1, 1, false));
+
+  TheFunction->getBasicBlockList().push_back(end_);
+  Builder.CreateBr(end_);
+  Builder.SetInsertPoint(end_);
+
+  return truth;
+
+}
+
+Value *LazyAnd(std::unique_ptr<ASTNode> lhs, std::unique_ptr<ASTNode> rhs, TOKEN tok) {
+  Function *TheFunction = Builder.GetInsertBlock()->getParent();
+  Value *truth = ConstantInt::get(TheContext, APInt(1, 0, false));
+  Value *cond = Casting(Type::getInt1Ty(TheContext) ,lhs->codegen(), tok, false);
+  std::cout << "over here?" << std::endl;
+  Value *comp = Builder.CreateICmpNE(
+      cond, ConstantInt::get(TheContext, APInt(1, 0, false)), "lazyandleft");
+  std::cout << "over here2?" << std::endl;
+    
+
+  BasicBlock *rhs_ = BasicBlock::Create(TheContext, "andlhst", TheFunction);
+  BasicBlock *true_ = BasicBlock::Create(TheContext, "andrhst");
+  BasicBlock *end_ = BasicBlock::Create(TheContext, "andend");
+
+  //if left true then jump to rhs_ branch and check if that is true as well
+  // otherwise go straight to end
+  Builder.CreateCondBr(comp, rhs_, end_);
+
+  Builder.SetInsertPoint(rhs_);
+  Value *right_cond = Casting(Type::getInt1Ty(TheContext) ,rhs->codegen(), tok, false);
+
+  Value *right_comp = Builder.CreateICmpNE(
+      right_cond, ConstantInt::get(TheContext, APInt(1, 0, false)), "lazyandright");
+  //check if right is true and if so, then set truth to true or just end straight away
+  Builder.CreateCondBr(right_comp, true_, end_);
+
+  TheFunction->getBasicBlockList().push_back(true_);
+  Builder.SetInsertPoint(true_);
+  truth = ConstantInt::get(TheContext, APInt(1, 1, false));
+
+  TheFunction->getBasicBlockList().push_back(end_);
+  Builder.CreateBr(end_);
+  Builder.SetInsertPoint(end_);
+
+  return truth;
+}
+
+
+
+
 /**
  * Value*BinaryExprAST::codegen 
  * codegen for binary expressions
@@ -305,16 +384,24 @@ Value *BinaryExprAST::codegen() {
     right = Casting(Type::getFloatTy(TheContext), right, Op, false);
     return Builder.CreateFCmpOGT(left, right, "ffttmp");
 
-  case (OR):
+  case (OR): {
+    std::cout << "here or" << std::endl;
 
-    left = Casting(Type::getInt1Ty(TheContext), left, Op, false);
-    right = Casting(Type::getInt1Ty(TheContext), right, Op, false);
-    return Builder.CreateOr(left, right, "ortmp");
+    TOKEN o = Op;
+    return LazyOr(std::move(LHS), std::move(RHS), o);
+    // left = Casting(Type::getInt1Ty(TheContext), left, Op, false);
+    // right = Casting(Type::getInt1Ty(TheContext), right, Op, false);
+    // return Builder.CreateOr(left, right, "ortmp");
+  }
 
-  case (AND):
-    left = Casting(Type::getInt1Ty(TheContext), left, Op, false);
-    right = Casting(Type::getInt1Ty(TheContext), right, Op, false);
-    return Builder.CreateAnd(left, right, "andtmp");
+  case (AND): {
+    std::cout << "here and" << std::endl;
+    TOKEN o = Op;
+    return LazyAnd(std::move(LHS), std::move(RHS), o);
+    // left = Casting(Type::getInt1Ty(TheContext), left, Op, false);
+    // right = Casting(Type::getInt1Ty(TheContext), right, Op, false);
+    // return Builder.CreateAnd(left, right, "andtmp");
+  }
 
   }
   TOKEN t = Op;

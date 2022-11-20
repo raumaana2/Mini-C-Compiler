@@ -28,7 +28,7 @@ TOKEN getNextToken() {
 
 /**
  * @brief  
- * @note   put back token into buffer
+ *    put back token into buffer
  * @param  tok: token to put back into buffer
  * @retval None
  */
@@ -37,7 +37,7 @@ void putBackToken(TOKEN tok) { tok_buffer.push_front(tok); }
 
 /**
  * @brief  
- * @note   checks if curtok matches token we want to consume and if they dont match
+ *    checks if curtok matches token we want to consume and if they dont match
  *          then throw a syntax error
  * @param  word: symbol to match
  * @param  symbol: symbol that needed to be matched, used by LogSymbolError(tok, symbol)
@@ -58,7 +58,7 @@ void match(int word, std::string symbol) {
 
 /**
  * @brief  
- * @note   begin parser here 
+ *    begin parser here 
  * @retval a unique pointer to program ast
  */
 std::unique_ptr<ASTNode> parser() {
@@ -70,13 +70,14 @@ std::unique_ptr<ASTNode> parser() {
   default:
     TOKEN tok = CurTok;
     LogSyntaxError(tok, "Expected EOF");
+    return nullptr;
   }
 }
 
 // program -> extern_list decl_list | decl_list
 /**
  * @brief  
- * @note  builds list for either extern list and decl list or just decl list
+ *   builds list for either extern list and decl list or just decl list
  * @retval unique pointer to ast node
  */
 std::unique_ptr<ASTNode> program() {
@@ -99,6 +100,7 @@ std::unique_ptr<ASTNode> program() {
   }
   TOKEN tok = CurTok;
   LogSyntaxError(tok, "expected extern or bool or float or int or void");
+  return nullptr;
 }
 
 
@@ -106,7 +108,7 @@ std::unique_ptr<ASTNode> program() {
 // extern_list -> extern extern_list_prime
 /**
  * @brief  
- * @note   builds extern list
+ *    builds extern list
  * @param  &list: extern list 
  * @retval None
  */
@@ -119,7 +121,7 @@ void extern_list(std::vector<std::unique_ptr<ASTNode>> &list) {
 // extern_list_prime -> extern extern_list_prime | epsilon
 /**
  * @brief  
- * @note   builds extern list 
+ *    builds extern list 
  * @param  &list: extern_list 
  * @retval None
  */
@@ -144,7 +146,7 @@ void extern_list_prime(std::vector<std::unique_ptr<ASTNode>> &list) {
 // extern -> "extern" type_spec IDENT "(" params ")" ";"
 /**
  * @brief  
- * @note   build extern function definition
+ *    build extern function definition
  * @retval unique pointer to prototype ast
  */
 std::unique_ptr<ASTNode> extern_() {
@@ -168,7 +170,7 @@ std::unique_ptr<ASTNode> extern_() {
 // decl_list -> decl decl_list_prime
 /**
  * @brief  
- * @note   build decl list
+ *    build decl list
  * @param  &list: decl_list
  * @retval None
  */
@@ -182,7 +184,7 @@ void decl_list(std::vector<std::unique_ptr<ASTNode>> &list) {
 // decl_list -> decl decl_list_prime | epsilon
 /**
  * @brief  
- * @note   build decl list
+ *    build decl list
  * @param  &list: decl_list
  * @retval None
  */
@@ -214,7 +216,7 @@ TOKEN peekll3() {
 // decl -> var_decl | fun_decl
 /**
  * @brief  
- * @note   decl function that decides between function declaration or variable declaration
+ *    decl function that decides between function declaration or variable declaration
  * @retval unique pointer to variable or function declaration
  */
 
@@ -235,12 +237,13 @@ std::unique_ptr<ASTNode> decl() {
   }
   TOKEN tok = CurTok;
   LogSyntaxError(tok, "expected a function or variable declaration");
+  return nullptr;
 }
 
 // var_decl -> var_type IDENT ";"
 /**
  * @brief  
- * @note   function to deal with variable declarations
+ *    function to deal with variable declarations
  * @retval unique pointer to variable declaration 
  */
 std::unique_ptr<VarDeclAST> var_decl() {
@@ -256,7 +259,7 @@ std::unique_ptr<VarDeclAST> var_decl() {
 //fun_decl -> type_spec IDENT "(" params ")" block
 /**
  * @brief  
- * @note   function to deal with function declaration 
+ *    function to deal with function declaration 
  * @retval unique pointer to function declaration 
  */
 std::unique_ptr<FunctionAST> fun_decl() {
@@ -282,7 +285,7 @@ std::unique_ptr<FunctionAST> fun_decl() {
 //var_type -> "int" | "float" | "bool"
 /**
  * @brief  
- * @note  type that can be used by variable or function declaration 
+ *   type that can be used by variable or function declaration 
  * @retval token of type
  */
 TOKEN var_type() {
@@ -296,12 +299,14 @@ TOKEN var_type() {
   }
   TOKEN tok = CurTok;
   LogSyntaxError(tok, "expected bool or float or int or void");
+  TOKEN null_tok;
+  return null_tok;
 }
 
 //type_spec -> "void"| var_type
 /**
  * @brief  
- * @note   function declaration is only allowed void type otherwise check if int, float or bool
+ *    function declaration is only allowed void type otherwise check if int, float or bool
  * @retval token of type
  */
 
@@ -317,7 +322,7 @@ TOKEN type_spec() {
 //params -> param_list | "void" | ϵ
 /**
  * @brief  
- * @note  function used to build parameter list or check if no parameters or if has void parameter
+ *   function used to build parameter list or check if no parameters or if has void parameter
  * @retval unique pointer 
  */
 std::vector<std::unique_ptr<VarDeclAST>> params() {
@@ -349,7 +354,7 @@ std::vector<std::unique_ptr<VarDeclAST>> params() {
 // param_list -> param param_list_prime
 /**
  * @brief  
- * @note   builds list of parameters
+ *    builds list of parameters
  * @param  &list: parameter list 
  * @retval None
  */
@@ -362,7 +367,7 @@ void param_list(std::vector<std::unique_ptr<VarDeclAST>> &list) {
 //param_list_prime -> "," param param_list_prime | ϵ
 /**
  * @brief  
- * @note   builds list of parameters
+ *    builds list of parameters
  * @param  &list: parameter list 
  * @retval None
  */
@@ -380,7 +385,7 @@ void param_list_prime(std::vector<std::unique_ptr<VarDeclAST>> &list) {
 //param -> var_type IDENT
 /**
  * @brief  
- * @note   builds parameter
+ *    builds parameter
  * @retval unique pointer to parameter represented as variable declaration
  */
 std::unique_ptr<VarDeclAST> param() {
@@ -395,7 +400,7 @@ std::unique_ptr<VarDeclAST> param() {
 //block -> "{" local_decls stmt_list "}"
 /**
  * @brief  
- * @note   builds block ast with local declaration list and statement list
+ *    builds block ast with local declaration list and statement list
  * @retval unique pointer to block ast
  */
 std::unique_ptr<BlockAST> block() {
@@ -423,14 +428,21 @@ std::unique_ptr<BlockAST> block() {
 //local_decls -> local_decls_prime
 /**
  * @brief  
- * @note   
- * @param  &list: 
+ *    builds list of local variable declarations
+ * @param  &list: list of local variable declarations
  * @retval None
  */
 void local_decls(std::vector<std::unique_ptr<ASTNode>> &list) {
   local_decls_prime(list);
 }
 
+// local_decls_prime -> local_decl local_decls_prime | ϵ
+/**
+ * @brief  
+ *    builds list of local variable declarations
+ * @param  &list: list of local variable declarations
+ * @retval None
+ */
 void local_decls_prime(std::vector<std::unique_ptr<ASTNode>> &list) {
 
   switch (CurTok.type) {
@@ -457,7 +469,7 @@ void local_decls_prime(std::vector<std::unique_ptr<ASTNode>> &list) {
   case (FLOAT_LIT):
   case (IDENT):
   case (INT_LIT):
-    return;
+    return;//follow set so stop list building
   }
 
   auto local_declaration = local_decl();
@@ -465,6 +477,12 @@ void local_decls_prime(std::vector<std::unique_ptr<ASTNode>> &list) {
   local_decls(list);
 }
 
+//local_decl -> var_type IDENT ";"
+/**
+ * @brief  
+ *  build local variable declaration    
+ * @retval unique pointer to variable declaration ast
+ */
 std::unique_ptr<ASTNode> local_decl() {
   TOKEN type = var_type();
   TOKEN identifier = CurTok;
@@ -474,18 +492,40 @@ std::unique_ptr<ASTNode> local_decl() {
   return std::move(variable_declaration);
 }
 
+//stmt_list -> stmt_list_prime
+/**
+ * @brief  
+ *    build list of statements
+ * @param  &list: list of statements
+ * @retval None
+ */
 void stmt_list(std::vector<std::unique_ptr<ASTNode>> &list) {
   stmt_list_prime(list);
 }
 
+// stmt_list_prime -> stmt stmt_list_prime | ϵ
+//stmt_list -> stmt_list_prime
+/**
+ * @brief  
+ *    build list of statements
+ * @param  &list: list of statements
+ * @retval None
+ */
 void stmt_list_prime(std::vector<std::unique_ptr<ASTNode>> &list) {
-  if (CurTok.type != RBRA) {
+  if (CurTok.type != RBRA) {  //if "}" then we have reached end of block
     auto statement = stmt();
     list.push_back(std::move(statement));
     stmt_list(list);
   }
 }
 
+
+//stmt -> expr_stmt | block | if_stmt | while_stmt | return_stmt
+/**
+ * @brief  
+ *  build statement   
+ * @retval unique pointer to if statement, expression statement, block, while statement or return statement ast
+ */
 std::unique_ptr<ASTNode> stmt() {
   switch (CurTok.type) {
   case (NOT):
@@ -508,8 +548,16 @@ std::unique_ptr<ASTNode> stmt() {
   }
   TOKEN tok = CurTok;
   LogSyntaxError(tok, "expected one of \"!\", \"(\", \"-\", \";\", boolean literal, float literal, integer literal, identifier, \"{\", \"if\", \"while\", \"return\"");
+  return nullptr;
 }
 
+
+// expr_stmt -> expr "; | ";"
+/**
+ * @brief  
+ *    build expression 
+ * @retval unique pointer to some expression ast
+ */
 std::unique_ptr<ASTNode> expr_stmt() {
   switch (CurTok.type) {
   case (NOT):
@@ -528,6 +576,13 @@ std::unique_ptr<ASTNode> expr_stmt() {
   return nullptr;
 }
 
+
+//while_stmt -> "while" "(" expr ")" stmt
+/**
+ * @brief  
+ *    build while statement
+ * @retval unique pointer to while statement ast
+ */
 std::unique_ptr<ASTNode> while_stmt() {
   match(WHILE, "while");
   match(LPAR, "(");
@@ -541,6 +596,13 @@ std::unique_ptr<ASTNode> while_stmt() {
   return std::move(while_statement);
 }
 
+
+//if_stmt -> "if" "(" expr ")" block else_stmt
+/**
+ * @brief  
+ *  build if statement   
+ * @retval unique pointer to if statement ast
+ */
 std::unique_ptr<ASTNode> if_stmt() {
   match(IF, "if");
   match(LPAR, "(");
@@ -555,6 +617,13 @@ std::unique_ptr<ASTNode> if_stmt() {
   return std::move(if_statement);
 }
 
+
+// else_stmt -> "else" block| ϵ
+/**
+ * @brief  
+ *    build else statement or return null ptr if doesn't exist
+ * @retval potentially a unique pointer to else body else a nullptr
+ */
 std::unique_ptr<ASTNode> else_stmt() {
   switch (CurTok.type) {
   case (NOT):
@@ -569,7 +638,7 @@ std::unique_ptr<ASTNode> else_stmt() {
   case (BOOL_LIT):
   case (FLOAT_LIT):
   case (IDENT):
-  case (INT_LIT):
+  case (INT_LIT): //follow set suggests that there is no else body
     return nullptr;
   }
   match(ELSE, "else");
@@ -577,6 +646,12 @@ std::unique_ptr<ASTNode> else_stmt() {
   return std::move(else_block);
 }
 
+//return_stmt -> "return" return_stmt_B
+/**
+ * @brief  
+ *  build return statement 
+ * @retval unique pointer to return statement ast
+ */
 std::unique_ptr<ASTNode> return_stmt() {
   TOKEN tok = CurTok;
   match(RETURN, "return");
@@ -586,6 +661,12 @@ std::unique_ptr<ASTNode> return_stmt() {
   return std::move(return_statement);
 }
 
+//return_stmt_B -> "; | expr ";"
+/**
+ * @brief  
+ *  build return body or check if no such body   
+ * @retval nullptr if no body otherwise unique pointer to return statement body 
+ */
 std::unique_ptr<ASTNode> return_stmt_B() {
   switch (CurTok.type) {
   case (NOT):
@@ -599,10 +680,12 @@ std::unique_ptr<ASTNode> return_stmt_B() {
     match(SC, ";");
     return std::move(expression);
   }
-  match(SC, ";");
+  //no body found
+  match(SC, ";"); 
   return nullptr;
 }
 
+//ll2 peek to determine between assignment or expression 
 TOKEN peekll2() {
   TOKEN old = CurTok;
   TOKEN lookahead = getNextToken();
@@ -612,12 +695,17 @@ TOKEN peekll2() {
   return temp;
 }
 
-// will need a lookaheads due to IDENT
+//expr -> IDENT "=" expr | or_val
+/**
+ * @brief  
+ *  build expression that is either expression or assignment   
+ * @retval unique pointer to expression ast or assignement ast
+ */
 std::unique_ptr<ASTNode> expr() {
   // determine if it is a variable assignment or a potential variable
   // statement or function call
   if (CurTok.type == IDENT) {
-
+    // will need a lookaheads due to IDENT
     TOKEN lookahead = peekll2();
     if (lookahead.type == ASSIGN) {
       TOKEN name = CurTok;
@@ -633,6 +721,7 @@ std::unique_ptr<ASTNode> expr() {
       return std::move(variable_assignment);
     }
   }
+  //determined it maybe an expression 
   switch (CurTok.type) {
   case (NOT):
   case (LPAR):
@@ -646,11 +735,19 @@ std::unique_ptr<ASTNode> expr() {
   }
   TOKEN tok = CurTok;
   LogSyntaxError(tok, "expected a variable assignment or expression");
-
+  return nullptr;
 }
 
+//or_val -> and_val or_val_prime 
+/**
+ * @brief  
+ *  build expression   
+ * @retval unique pointer to binary expression 
+ */
 std::unique_ptr<ASTNode> or_val() {
   auto lhs = and_val();
+
+  //code to deal with right associativity 
   while (CurTok.type == OR) {
     TOKEN op = CurTok;
     getNextToken();
@@ -660,6 +757,13 @@ std::unique_ptr<ASTNode> or_val() {
   return or_val_prime(std::move(lhs));
 }
 
+
+// or_val_prime -> "||" and_val or_val_prime | ϵ
+/**
+ * @brief  
+ *  build expression   
+ * @retval unique pointer to binary expression 
+ */
 std::unique_ptr<ASTNode> or_val_prime(std::unique_ptr<ASTNode> lhs) {
   TOKEN op;
 
@@ -680,8 +784,15 @@ std::unique_ptr<ASTNode> or_val_prime(std::unique_ptr<ASTNode> lhs) {
   }
   TOKEN tok = CurTok;  
   LogSyntaxError(tok, "expected one of \")\", \";\", \"||\"");
+  return nullptr;
 }
 
+// and_val -> eq_val and_val_prime
+/**
+ * @brief  
+ *  build expression   
+ * @retval unique pointer to binary expression 
+ */
 std::unique_ptr<ASTNode> and_val() {
 
   auto lhs = eq_val();
@@ -694,6 +805,13 @@ std::unique_ptr<ASTNode> and_val() {
   return and_val_prime(std::move(lhs));
 }
 
+
+// and_val_prime -> "&&" eq_val and_val_prime | ϵ
+/**
+ * @brief  
+ *  build expression   
+ * @retval unique pointer to binary expression 
+ */
 std::unique_ptr<ASTNode> and_val_prime(std::unique_ptr<ASTNode> lhs) {
   TOKEN op;
   switch (CurTok.type) {
@@ -715,8 +833,16 @@ std::unique_ptr<ASTNode> and_val_prime(std::unique_ptr<ASTNode> lhs) {
   }
   TOKEN tok = CurTok;
   LogSyntaxError(tok, "expected one of \")\", \";\", \"||\", \"&&\"");
+  return nullptr;
 }
 
+
+//eq_val -> comp_val eq_val_prime
+/**
+ * @brief  
+ *  build expression   
+ * @retval unique pointer to binary expression 
+ */
 std::unique_ptr<ASTNode> eq_val() {
   auto lhs = comp_val();
 
@@ -730,6 +856,12 @@ std::unique_ptr<ASTNode> eq_val() {
   return eq_val_prime(std::move(lhs));
 }
 
+// eq_val_prime -> "==" comp_val eq_val_prime | "!=" comp_val eq_val_prime | ϵ
+/**
+ * @brief  
+ *  build expression   
+ * @retval unique pointer to binary expression 
+ */
 std::unique_ptr<ASTNode> eq_val_prime(std::unique_ptr<ASTNode> lhs) {
   TOKEN op;
   switch (CurTok.type) {
@@ -753,8 +885,16 @@ std::unique_ptr<ASTNode> eq_val_prime(std::unique_ptr<ASTNode> lhs) {
   }
   TOKEN tok = CurTok;
   LogSyntaxError(tok, "expected one of \")\", \";\", \"||\", \"&&\", \"==\", \"!=\"");
+  return nullptr;
 }
 
+
+// comp_val -> add_val comp_val_prime
+/**
+ * @brief  
+ *  build expression   
+ * @retval unique pointer to binary expression 
+ */
 std::unique_ptr<ASTNode> comp_val() {
   auto lhs = add_val();
   while (CurTok.type == LE || CurTok.type == LT || CurTok.type == GE ||
@@ -767,6 +907,16 @@ std::unique_ptr<ASTNode> comp_val() {
   return comp_val_prime(std::move(lhs));
 }
 
+// comp_val_prime -> "<=" add_val comp_val_prime
+// | "<" add_val comp_val_prime
+// | ">=" add_val comp_val_prime
+// | ">" add_val comp_val_prime
+// | ϵ
+/**
+ * @brief  
+ *  build expression   
+ * @retval unique pointer to binary expression 
+ */
 std::unique_ptr<ASTNode> comp_val_prime(std::unique_ptr<ASTNode> lhs) {
   TOKEN op;
   switch (CurTok.type) {
@@ -794,8 +944,15 @@ std::unique_ptr<ASTNode> comp_val_prime(std::unique_ptr<ASTNode> lhs) {
   }
   TOKEN tok = CurTok;
   LogSyntaxError(tok, "expected one of \")\", \";\", \"||\", \"&&\", \"<\", \"<=\", \">\", \">=\"");
+  return nullptr;
 }
 
+// add_val -> mul_val add_val_prime
+/**
+ * @brief  
+ *  build expression   
+ * @retval unique pointer to binary expression 
+ */
 std::unique_ptr<ASTNode> add_val() {
   auto lhs = mul_val();
 
@@ -808,6 +965,15 @@ std::unique_ptr<ASTNode> add_val() {
   return add_val_prime(std::move(lhs));
 }
 
+
+// add_val_prime -> "+" mul_val add_val_prime
+// | "-" mul_val add_val_prime
+// | ϵ
+/**
+ * @brief  
+ *  build expression   
+ * @retval unique pointer to binary expression 
+ */
 std::unique_ptr<ASTNode> add_val_prime(std::unique_ptr<ASTNode> lhs) {
   TOKEN op;
   switch (CurTok.type) {
@@ -835,9 +1001,17 @@ std::unique_ptr<ASTNode> add_val_prime(std::unique_ptr<ASTNode> lhs) {
   }
   TOKEN tok = CurTok;
   LogSyntaxError(tok, "expected one of \")\", \";\", \"||\", \"&&\", \"<\", \"<=\", \">\", \">=\", \"+\", \"-\"");
+  return nullptr;
 
 }
 
+
+// mul_val -> unary mul_val_prime
+/**
+ * @brief  
+ *  build expression   
+ * @retval unique pointer to binary expression 
+ */
 std::unique_ptr<ASTNode> mul_val() {
   auto lhs = unary();
   while (CurTok.type == ASTERIX || CurTok.type == DIV || CurTok.type == MOD) {
@@ -849,6 +1023,16 @@ std::unique_ptr<ASTNode> mul_val() {
   return mul_val_prime(std::move(lhs));
 }
 
+
+// mul_val_prime ->  "*" unary mul_val_prime
+// | "/" unary mul_val_prime
+// | "%" unary mul_val_prime
+// | ϵ
+/**
+ * @brief  
+ *  build expression   
+ * @retval unique pointer to binary expression 
+ */
 std::unique_ptr<ASTNode> mul_val_prime(std::unique_ptr<ASTNode> lhs) {
   TOKEN op;
 
@@ -880,8 +1064,18 @@ std::unique_ptr<ASTNode> mul_val_prime(std::unique_ptr<ASTNode> lhs) {
   }
   TOKEN tok = CurTok;
   LogSyntaxError(tok, "expected one of \")\", \";\", \"||\", \"&&\", \"<\", \"<=\", \">\", \">=\", \"+\", \"-\", \"*\", \"/\", \"%\"");
+  return nullptr;
 }
 
+
+// unary ->  "-" unary
+// | "!" unary
+// | identifiers
+/**
+ * @brief  
+ *  build unaary expression   
+ * @retval unique pointer to unary expression 
+ */
 std::unique_ptr<ASTNode> unary() {
   switch (CurTok.type) {
   case (LPAR):
@@ -903,8 +1097,20 @@ std::unique_ptr<ASTNode> unary() {
   }
   TOKEN tok = CurTok;
   LogSyntaxError(tok, "expected one of \"(\", boolean literal, float literal, indentifier, int literal, \"-\", \"!\"");
+  return nullptr;
 }
 
+
+// identifiers -> "(" expr ")"
+// | IDENT identifiers_B
+// | INT_LIT 
+// | FLOAT_LIT
+// | BOOL_LIT
+/**
+ * @brief  
+ *  determines if identifier or literal 
+ * @retval unique pointer to literal ast
+ */
 std::unique_ptr<ASTNode> identifiers() {
   switch (CurTok.type) {
   case (IDENT): {
@@ -927,9 +1133,19 @@ std::unique_ptr<ASTNode> identifiers() {
   }
   TOKEN tok = CurTok;
   LogSyntaxError(tok, "expected one of \"(\", boolean literal, float literal, indentifier, int literal");
+  return nullptr;
 
 }
 
+
+
+// identifiers_B -> "(" args ")"
+// | ϵ 
+/**
+ * @brief  
+ *  determines if identifier or function call
+ * @retval unique pointer to identifier or function call
+ */
 std::unique_ptr<ASTNode> identifiers_B() {
   TOKEN identifier = CurTok;
   getNextToken();
@@ -967,9 +1183,16 @@ std::unique_ptr<ASTNode> identifiers_B() {
   }
   TOKEN tok = CurTok;
   LogSyntaxError(tok, "expected one of \"(\", \")\", \";\", \"||\", \"&&\", \"<\", \"<=\", \">\", \">=\", \"+\", \"-\", \"*\", \"/\", \"%\"");
-
+  return nullptr;
 }
 
+// args -> arg_list
+// | ϵ
+/**
+ * @brief  
+ * build arguments for argument list
+ * @retval unique pointer to argument
+ */
 std::vector<std::unique_ptr<ASTNode>> args() {
   std::vector<std::unique_ptr<ASTNode>> argument_list;
   // if not the follow case, we will populate the list otherwise we simply
@@ -981,6 +1204,14 @@ std::vector<std::unique_ptr<ASTNode>> args() {
   return std::move(argument_list);
 }
 
+
+// arg_list -> expr arg_list_prime
+/**
+ * @brief  
+ *   build list of arguments 
+ * @param  &list: argument list 
+ * @retval None
+ */
 void arg_list(std::vector<std::unique_ptr<ASTNode>> &list) {
   auto expression = expr();
   list.push_back(std::move(expression));
@@ -988,8 +1219,15 @@ void arg_list(std::vector<std::unique_ptr<ASTNode>> &list) {
   arg_list_prime(list);
 }
 
+// arg_list_prime -> "," expr arg_list_prime | ϵ
+/**
+ * @brief  
+ *  build list of arguments
+ * @param  &list: 
+ * @retval None
+ */
 void arg_list_prime(std::vector<std::unique_ptr<ASTNode>> &list) {
-  if (CurTok.type != RPAR) {
+  if (CurTok.type != RPAR) { //if ")" then no more arguments left, stop building
     match(COMMA, ",");
     auto expression = expr();
     list.push_back(std::move(expression));
