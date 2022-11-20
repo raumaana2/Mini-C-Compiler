@@ -8,13 +8,15 @@ LLVMContext TheContext;
 IRBuilder<> Builder(TheContext);
 std::unique_ptr<Module> TheModule;
 
-std::queue<std::tuple<TOKEN, std::string>> WarningQueue;  // queue for storing warnings which is printed after IR generated
-std::vector<std::map<std::string, AllocaInst *>> Scopes;  // vector of scopes
-std::map<std::string, GlobalVariable *> GlobalVariables;  // global scope
-int return_flag = 0;  //flag to see if return statement has been found
+std::queue<std::tuple<TOKEN, std::string>>
+    WarningQueue; // queue for storing warnings which is printed after IR
+                  // generated
+std::vector<std::map<std::string, AllocaInst *>> Scopes; // vector of scopes
+std::map<std::string, GlobalVariable *> GlobalVariables; // global scope
+int return_flag = 0; // flag to see if return statement has been found
 /**
- * AllocaInst*CreateEntryBlockAlloca 
- * Create alloca entries 
+ * AllocaInst*CreateEntryBlockAlloca
+ * Create alloca entries
  */
 AllocaInst *CreateEntryBlockAlloca(Function *TheFunction,
                                    const std::string &VarName,
@@ -25,30 +27,31 @@ AllocaInst *CreateEntryBlockAlloca(Function *TheFunction,
   return TmpB.CreateAlloca(type, 0, VarName.c_str());
 }
 /**
- * Value*Casting 
- * 
+ * Value*Casting
+ *
  * @param  {Type*} VarType    : Destination type
  * @param  {Value*} NewVal    : Value we want to cast
  * @param  {TOKEN} tok        : token for warnings
  * @param  {bool} should_warn : determining if cast should give warning
  */
-Value *Casting(Type *VarType, Value *NewVal, TOKEN tok, bool should_warn) {
-  TOKEN t = tok; //token used for warnings
-  //convert expression into 32 bit int
+Value *Casting(Type *VarType, Value *NewVal, TOKEN tok) {
+  TOKEN t = tok; // token used for warnings
+  // convert expression into 32 bit int
+
   if (VarType->isIntegerTy(32)) {
-    if (NewVal->getType()->isIntegerTy(32)) { 
+    if (NewVal->getType()->isIntegerTy(32)) {
       return NewVal;
     } else if (NewVal->getType()->isIntegerTy(1)) {
-      if (should_warn)
-        WarningQueue.push(std::tuple<TOKEN, std::string>(
-            tok, "implicit conversion from boolean to integer"));
+
+      WarningQueue.push(std::tuple<TOKEN, std::string>(
+          tok, "implicit conversion from boolean to integer"));
 
       return Builder.CreateIntCast(NewVal, Type::getInt32Ty(TheContext), false,
                                    "btoi32");
     } else if (NewVal->getType()->isFloatTy()) {
-      if (should_warn)
-        WarningQueue.push(std::tuple<TOKEN, std::string>(
-            tok, "implicit conversion from float to integer"));
+
+      WarningQueue.push(std::tuple<TOKEN, std::string>(
+          tok, "implicit conversion from float to integer"));
 
       return Builder.CreateFPToSI(NewVal, Type::getInt32Ty(TheContext),
                                   "ftoi32");
@@ -56,9 +59,9 @@ Value *Casting(Type *VarType, Value *NewVal, TOKEN tok, bool should_warn) {
     // convert expression into boolean
   } else if (VarType->isIntegerTy(1)) {
     if (NewVal->getType()->isIntegerTy(32)) {
-      if (should_warn)
-        WarningQueue.push(std::tuple<TOKEN, std::string>(
-            tok, "implicit conversion from integer to boolean"));
+
+      WarningQueue.push(std::tuple<TOKEN, std::string>(
+          tok, "implicit conversion from integer to boolean"));
 
       return Builder.CreateICmpNE(
           NewVal, ConstantInt::get(Type::getInt32Ty(TheContext), false),
@@ -67,9 +70,9 @@ Value *Casting(Type *VarType, Value *NewVal, TOKEN tok, bool should_warn) {
 
       return NewVal;
     } else if (NewVal->getType()->isFloatTy()) {
-      if (should_warn)
-        WarningQueue.push(std::tuple<TOKEN, std::string>(
-            tok, "implicit conversion from float to boolean"));
+
+      WarningQueue.push(std::tuple<TOKEN, std::string>(
+          tok, "implicit conversion from float to boolean"));
 
       return Builder.CreateFCmpONE(
           NewVal, ConstantFP::get(TheContext, APFloat(0.0f)), "ftob");
@@ -77,16 +80,16 @@ Value *Casting(Type *VarType, Value *NewVal, TOKEN tok, bool should_warn) {
     // convert expression to floating point
   } else if (VarType->isFloatTy()) {
     if (NewVal->getType()->isIntegerTy(32)) {
-      if (should_warn)
-        WarningQueue.push(std::tuple<TOKEN, std::string>(
-            tok, "implicit conversion from integer to float"));
+
+      WarningQueue.push(std::tuple<TOKEN, std::string>(
+          tok, "implicit conversion from integer to float"));
 
       return Builder.CreateSIToFP(NewVal, Type::getFloatTy(TheContext),
                                   "i32tof");
     } else if (NewVal->getType()->isIntegerTy(1)) {
-      if (should_warn)
-        WarningQueue.push(std::tuple<TOKEN, std::string>(
-            tok, "implicit conversion from boolean to float"));
+
+      WarningQueue.push(std::tuple<TOKEN, std::string>(
+          tok, "implicit conversion from boolean to float"));
 
       return Builder.CreateSIToFP(NewVal, Type::getFloatTy(TheContext),
                                   "i1tof");
@@ -99,40 +102,43 @@ Value *Casting(Type *VarType, Value *NewVal, TOKEN tok, bool should_warn) {
 }
 
 /**
- * Value*ProgramAST::codegen 
+ * Value*ProgramAST::codegen
  * codegen externs and declarations
  */
 Value *ProgramAST::codegen() {
-  for (int i = 0; i < ExternList.size(); i++) { //codegen externs
+  for (int i = 0; i < ExternList.size(); i++) { // codegen externs
     if (ExternList[i])
       ExternList[i]->codegen();
   }
 
-  for (int i = 0; i < DeclList.size(); i++) { //codegen declarations
+  for (int i = 0; i < DeclList.size(); i++) { // codegen declarations
     if (DeclList[i])
       DeclList[i]->codegen();
   }
-  LogWarnings();  //print out warnings
+  LogWarnings(); // print out warnings
   return nullptr;
 }
 
 /**
- * Value*BlockAST::codegen 
+ * Value*BlockAST::codegen
  * codegen local declarations and statements
  */
 Value *BlockAST::codegen() {
-  llvm::Type *FuncReturnType = Builder.getCurrentFunctionReturnType();  //get function return type
-  Scopes.push_back(std::map<std::string, AllocaInst *>());  //new scope per block
-  for (int i = 0; i < LocalDecls.size(); i++) { //codegen local declarations
+  llvm::Type *FuncReturnType =
+      Builder.getCurrentFunctionReturnType(); // get function return type
+  Scopes.push_back(std::map<std::string, AllocaInst *>()); // new scope per
+                                                           // block
+  for (int i = 0; i < LocalDecls.size(); i++) { // codegen local declarations
     if (LocalDecls[i])
       LocalDecls[i]->codegen();
   }
 
-  for (int i = 0; i < StmtList.size(); i++) { //codegen statements
+  for (int i = 0; i < StmtList.size(); i++) { // codegen statements
 
     if (StmtList[i]) {
-      //cast statement into return ast and check if null and if not null, we generate return statement and terminate codegen early
-      auto StmtToReturn = dynamic_cast<ReturnAST *>(StmtList[i].get()); 
+      // cast statement into return ast and check if null and if not null, we
+      // generate return statement and terminate codegen early
+      auto StmtToReturn = dynamic_cast<ReturnAST *>(StmtList[i].get());
       if (StmtToReturn) {
         StmtToReturn->codegen();
         break;
@@ -140,72 +146,98 @@ Value *BlockAST::codegen() {
       StmtList[i]->codegen();
     }
   }
-  //we have exhausted all statements for this block, but we need to check if a return statement was found and if not
-  //check if function is void
-  if (Scopes.size() == 2 && FuncReturnType->isVoidTy()) { //scopes.size() == 2 means we are in a function block
-    if (return_flag != 1) { //no returns found but this is a void function so we generate retvoid 
+  // we have exhausted all statements for this block, but we need to check if a
+  // return statement was found and if not check if function is void
+  if (Scopes.size() == 2 &&
+      FuncReturnType
+          ->isVoidTy()) { // scopes.size() == 2 means we are in a function block
+    if (return_flag != 1) { // no returns found but this is a void function so
+                            // we generate retvoid
       Builder.CreateRetVoid();
     }
-  } else if (Scopes.size() == 2 && !(FuncReturnType->isVoidTy())) { // non void function
-    if (return_flag != 1) { // no return found for non void function so semantic error
+  } else if (Scopes.size() == 2 &&
+             !(FuncReturnType->isVoidTy())) { // non void function
+    if (return_flag !=
+        1) { // no return found for non void function so semantic error
       TOKEN tok = Tok;
       LogSemanticError(tok, "no return for non-void function");
     }
   }
-  Scopes.pop_back();  //we are finished with this scope
+  Scopes.pop_back(); // we are finished with this scope
   return nullptr;
 }
 /**
- * Value*LiteralASTNode::codegen 
- * code gen for literals 
+ * Value*LiteralASTNode::codegen
+ * code gen for literals
  */
 Value *LiteralASTNode::codegen() {
   switch (Tok.type) {
   case (INT_LIT):
-    return ConstantInt::get(TheContext, APInt(32, std::stoi(Tok.lexeme), true));  //return integer literal by converting token lexeme to llvm constant
-  case (FLOAT_LIT): 
-    return ConstantFP::get(TheContext, APFloat(std::stof(Tok.lexeme))); //return float literal by converting token lexeme to llvm constant
+    return ConstantInt::get(
+        TheContext, APInt(32, std::stoi(Tok.lexeme),
+                          true)); // return integer literal by converting token
+                                  // lexeme to llvm constant
+  case (FLOAT_LIT):
+    return ConstantFP::get(
+        TheContext,
+        APFloat(std::stof(Tok.lexeme))); // return float literal by converting
+                                         // token lexeme to llvm constant
 
   case (BOOL_LIT): {
-    
-    int bool_ = (Tok.lexeme == "true") ? 1 : 0; //lexeme will be of of string true or false but we need to convert to numerical representation
-    return ConstantInt::get(TheContext, APInt(1, bool_, false)); //return bool literal by converting token lexeme to llvm constant
+
+    int bool_ = (Tok.lexeme == "true")
+                    ? 1
+                    : 0; // lexeme will be of of string true or false but we
+                         // need to convert to numerical representation
+    return ConstantInt::get(
+        TheContext,
+        APInt(1, bool_, false)); // return bool literal by converting token
+                                 // lexeme to llvm constant
   }
-  case (IDENT): //identifiers
+  case (IDENT): // identifiers
 
     AllocaInst *V;
 
-    //check scopes first to see if variable exists
+    // check scopes first to see if variable exists
     for (int i = Scopes.size() - 1; i >= 0; i--) {
       if (Scopes[i].count(Tok.lexeme) > 0) {
         V = Scopes[i][Tok.lexeme];
         break;
       }
     }
-    //if not found in any scope, check global variables
+    // if not found in any scope, check global variables
     if (!V) {
 
       GlobalVariable *G = GlobalVariables[Tok.lexeme];
-      if (!G) { //variable not found, semantic error
+      if (!G) { // variable not found, semantic error
         TOKEN t = Tok;
         LogSemanticError(t,
                          "use of undeclared identifier \"" + t.lexeme + "\"");
       }
-      return Builder.CreateLoad(G->getValueType(), G, Tok.lexeme);  //variable found as global variable, convert global variable to value pointer
+      return Builder.CreateLoad(
+          G->getValueType(), G,
+          Tok.lexeme); // variable found as global variable, convert global
+                       // variable to value pointer
     } else {
-      return Builder.CreateLoad(V->getAllocatedType(), V, Tok.lexeme); //variable found in scopes, convert alloca to value pointer
+      return Builder.CreateLoad(V->getAllocatedType(), V,
+                                Tok.lexeme); // variable found in scopes,
+                                             // convert alloca to value pointer
     }
   }
 
   return nullptr;
 }
 
-
-Value *LazyOr(std::unique_ptr<ASTNode> lhs, std::unique_ptr<ASTNode> rhs, TOKEN tok) {
+Value *LazyOr(std::unique_ptr<ASTNode> lhs, std::unique_ptr<ASTNode> rhs,
+              TOKEN tok) {
   Function *TheFunction = Builder.GetInsertBlock()->getParent();
-  Value *truth = ConstantInt::get(TheContext, APInt(1, 0, false));
-  Value *cond = Casting(Type::getInt1Ty(TheContext) ,lhs->codegen(), tok, false);
 
+  AllocaInst *Alloca = CreateEntryBlockAlloca(TheFunction, "ortruth",
+                                              Type::getInt1Ty(TheContext));
+  Builder.CreateStore(ConstantInt::get(TheContext, APInt(1, 0, false)), Alloca);
+
+  Value *cond =
+      Casting(Type::getInt1Ty(TheContext), lhs->codegen(), tok, false);
 
   Value *comp = Builder.CreateICmpNE(
       cond, ConstantInt::get(TheContext, APInt(1, 0, false)), "lazyorleft");
@@ -214,79 +246,109 @@ Value *LazyOr(std::unique_ptr<ASTNode> lhs, std::unique_ptr<ASTNode> rhs, TOKEN 
   BasicBlock *true_ = BasicBlock::Create(TheContext, "orlhst");
   BasicBlock *end_ = BasicBlock::Create(TheContext, "orend");
 
-  //if left true then jump to true_ branch which sets truth to true
-  // otherwise go check if rhs is true
+  // if left true then jump to true_ branch which sets truth to true
+  //  otherwise go check if rhs is true
   Builder.CreateCondBr(comp, true_, rhs_);
 
   Builder.SetInsertPoint(rhs_);
-  Value *right_cond = Casting(Type::getInt1Ty(TheContext) ,rhs->codegen(), tok, false);
+  Value *right_cond =
+      Casting(Type::getInt1Ty(TheContext), rhs->codegen(), tok, false);
   Value *right_comp = Builder.CreateICmpNE(
-      right_cond, ConstantInt::get(TheContext, APInt(1, 0, false)), "lazyorright");
-  //check if right is true and if so, then set truth to true or just end straight away
+      right_cond, ConstantInt::get(TheContext, APInt(1, 0, false)),
+      "lazyorright");
+  // check if right is true and if so, then set truth to true or just end
+  // straight away
   Builder.CreateCondBr(right_comp, true_, end_);
 
   TheFunction->getBasicBlockList().push_back(true_);
   Builder.SetInsertPoint(true_);
-  truth = ConstantInt::get(TheContext, APInt(1, 1, false));
+
+  Builder.CreateStore(ConstantInt::get(TheContext, APInt(1, 1, false)), Alloca);
 
   TheFunction->getBasicBlockList().push_back(end_);
   Builder.CreateBr(end_);
   Builder.SetInsertPoint(end_);
 
-  return truth;
-
+  return Builder.CreateLoad(Alloca->getAllocatedType(), Alloca, "finalortruth");
 }
 
-Value *LazyAnd(std::unique_ptr<ASTNode> lhs, std::unique_ptr<ASTNode> rhs, TOKEN tok) {
+Value *LazyAnd(std::unique_ptr<ASTNode> lhs, std::unique_ptr<ASTNode> rhs,
+               TOKEN tok) {
   Function *TheFunction = Builder.GetInsertBlock()->getParent();
-  Value *truth = ConstantInt::get(TheContext, APInt(1, 0, false));
-  Value *cond = Casting(Type::getInt1Ty(TheContext) ,lhs->codegen(), tok, false);
-  std::cout << "over here?" << std::endl;
+
+  AllocaInst *Alloca = CreateEntryBlockAlloca(TheFunction, "andtruth",
+                                              Type::getInt1Ty(TheContext));
+  Builder.CreateStore(ConstantInt::get(TheContext, APInt(1, 0, false)), Alloca);
+
+  Value *cond =
+      Casting(Type::getInt1Ty(TheContext), lhs->codegen(), tok, false);
   Value *comp = Builder.CreateICmpNE(
       cond, ConstantInt::get(TheContext, APInt(1, 0, false)), "lazyandleft");
-  std::cout << "over here2?" << std::endl;
-    
 
   BasicBlock *rhs_ = BasicBlock::Create(TheContext, "andlhst", TheFunction);
   BasicBlock *true_ = BasicBlock::Create(TheContext, "andrhst");
   BasicBlock *end_ = BasicBlock::Create(TheContext, "andend");
 
-  //if left true then jump to rhs_ branch and check if that is true as well
-  // otherwise go straight to end
+  // if left true then jump to rhs_ branch and check if that is true as well
+  //  otherwise go straight to end
   Builder.CreateCondBr(comp, rhs_, end_);
 
   Builder.SetInsertPoint(rhs_);
-  Value *right_cond = Casting(Type::getInt1Ty(TheContext) ,rhs->codegen(), tok, false);
+
+  Value *r = rhs->codegen();
+  Value *right_cond = Casting(Type::getInt1Ty(TheContext), r, tok, false);
 
   Value *right_comp = Builder.CreateICmpNE(
-      right_cond, ConstantInt::get(TheContext, APInt(1, 0, false)), "lazyandright");
-  //check if right is true and if so, then set truth to true or just end straight away
+      right_cond, ConstantInt::get(TheContext, APInt(1, 0, false)),
+      "lazyandright");
+  // check if right is true and if so, then set truth to true or just end
+  // straight away
   Builder.CreateCondBr(right_comp, true_, end_);
 
   TheFunction->getBasicBlockList().push_back(true_);
   Builder.SetInsertPoint(true_);
-  truth = ConstantInt::get(TheContext, APInt(1, 1, false));
+  Builder.CreateStore(ConstantInt::get(TheContext, APInt(1, 1, false)), Alloca);
 
   TheFunction->getBasicBlockList().push_back(end_);
   Builder.CreateBr(end_);
   Builder.SetInsertPoint(end_);
 
-  return truth;
+  return Builder.CreateLoad(Alloca->getAllocatedType(), Alloca, "finalortruth");
 }
 
-
-
-
 /**
- * Value*BinaryExprAST::codegen 
+ * Value*BinaryExprAST::codegen
  * codegen for binary expressions
  */
 Value *BinaryExprAST::codegen() {
 
-  Value *left = LHS->codegen(); //convert LHS to value
-  Value *right = RHS->codegen();  //convert RHS to value
+  if (!LHS || !RHS)
+    return nullptr;
 
-  if (!left || !right) {  // if either lhs or rhs null then return null
+  // AND and OR case
+  switch (Op.type) {
+  case (AND): {
+
+    TOKEN o = Op;
+    return LazyAnd(std::move(LHS), std::move(RHS), o);
+    // left = Casting(Type::getInt1Ty(TheContext), left, Op, false);
+    // right = Casting(Type::getInt1Ty(TheContext), right, Op, false);
+    // return Builder.CreateAnd(left, right, "andtmp");
+  }
+  case (OR): {
+
+    TOKEN o = Op;
+    return LazyOr(std::move(LHS), std::move(RHS), o);
+    // left = Casting(Type::getInt1Ty(TheContext), left, Op, false);
+    // right = Casting(Type::getInt1Ty(TheContext), right, Op, false);
+    // return Builder.CreateOr(left, right, "ortmp");
+  }
+  }
+
+  Value *left = LHS->codegen();  // convert LHS to value
+  Value *right = RHS->codegen(); // convert RHS to value
+
+  if (!left || !right) { // if either lhs or rhs null then return null
     return nullptr;
   }
   switch (Op.type) {
@@ -384,63 +446,59 @@ Value *BinaryExprAST::codegen() {
     right = Casting(Type::getFloatTy(TheContext), right, Op, false);
     return Builder.CreateFCmpOGT(left, right, "ffttmp");
 
-  case (OR): {
-    std::cout << "here or" << std::endl;
+    // case (OR): {
 
-    TOKEN o = Op;
-    return LazyOr(std::move(LHS), std::move(RHS), o);
-    // left = Casting(Type::getInt1Ty(TheContext), left, Op, false);
-    // right = Casting(Type::getInt1Ty(TheContext), right, Op, false);
-    // return Builder.CreateOr(left, right, "ortmp");
-  }
+    //   TOKEN o = Op;
+    //   return LazyOr(std::move(LHS), std::move(RHS), o);
+    //   // left = Casting(Type::getInt1Ty(TheContext), left, Op, false);
+    //   // right = Casting(Type::getInt1Ty(TheContext), right, Op, false);
+    //   // return Builder.CreateOr(left, right, "ortmp");
+    // }
 
-  case (AND): {
-    std::cout << "here and" << std::endl;
-    TOKEN o = Op;
-    return LazyAnd(std::move(LHS), std::move(RHS), o);
-    // left = Casting(Type::getInt1Ty(TheContext), left, Op, false);
-    // right = Casting(Type::getInt1Ty(TheContext), right, Op, false);
-    // return Builder.CreateAnd(left, right, "andtmp");
-  }
-
+    // case (AND): {
+    //   TOKEN o = Op;
+    //   return LazyAnd(std::move(LHS), std::move(RHS), o);
+    //   // left = Casting(Type::getInt1Ty(TheContext), left, Op, false);
+    //   // right = Casting(Type::getInt1Ty(TheContext), right, Op, false);
+    //   // return Builder.CreateAnd(left, right, "andtmp");
+    // }
   }
   TOKEN t = Op;
   LogSemanticError(t, "invalid binary operator");
   return nullptr;
 }
 /**
- * Value*UnaryExprAST::codegen 
+ * Value*UnaryExprAST::codegen
  * codegen for unary expressions
  */
 Value *UnaryExprAST::codegen() {
-  Value *V = Expr->codegen(); //convert expression into value
+  Value *V = Expr->codegen(); // convert expression into value
 
-  if (!V) 
+  if (!V)
     return nullptr;
 
   switch (Op.type) {
-  case (NOT): //! 
+  case (NOT): //!
 
     V = Casting(Type::getInt1Ty(TheContext), V, Op, false);
     return Builder.CreateNot(V, "nottmp");
 
-  case (MINUS)://-
+  case (MINUS): //-
 
-  //if integer value, then use CreateNeg otherwise use FNeg
-    if (V->getType()->isIntegerTy(1) || V->getType()->isIntegerTy(32)) {  
+    // if integer value, then use CreateNeg otherwise use FNeg
+    if (V->getType()->isIntegerTy(1) || V->getType()->isIntegerTy(32)) {
       V = Casting(Type::getInt32Ty(TheContext), V, Op, false);
       return Builder.CreateNeg(V, "inegtmp");
     }
     V = Casting(Type::getFloatTy(TheContext), V, Op, false);
     return Builder.CreateFNeg(V, "fnegtmp");
-
   }
   TOKEN t = Op;
   LogSemanticError(t, "invalid unary operator");
   return nullptr;
 }
 /**
- * Value*CallExprAST::codegen 
+ * Value*CallExprAST::codegen
  * code gen for function calls
  */
 Value *CallExprAST::codegen() {
@@ -453,7 +511,7 @@ Value *CallExprAST::codegen() {
     return nullptr;
   }
 
-  //if argument size does not match callee arg size
+  // if argument size does not match callee arg size
   if (CalleeF->arg_size() < Args.size()) {
     TOKEN t = Callee;
     std::string message = "too many arguments to function call, expected " +
@@ -472,19 +530,20 @@ Value *CallExprAST::codegen() {
 
   std::vector<Type *> ParameterTypes;
 
-  //push back arguments into callee parameter with correct type
+  // push back arguments into callee parameter with correct type
   for (auto &Arg : CalleeF->args()) {
     ParameterTypes.push_back(Arg.getType());
   }
   for (int i = 0; i < Args.size(); i++) {
-    ArgsV.push_back(Casting(ParameterTypes[i], Args[i]->codegen(), Callee, true));
+    ArgsV.push_back(
+        Casting(ParameterTypes[i], Args[i]->codegen(), Callee, true));
   }
 
   return Builder.CreateCall(CalleeF, ArgsV, "calltmp");
 }
 /**
- * llvm::Type*getType 
- * Given token, get respective Type* 
+ * llvm::Type*getType
+ * Given token, get respective Type*
  * @param  {TOKEN} t : token to get type from
  */
 llvm::Type *getType(TOKEN t) {
@@ -503,9 +562,9 @@ llvm::Type *getType(TOKEN t) {
 }
 
 /**
- * Function*PrototypeAST::codegen 
+ * Function*PrototypeAST::codegen
  * codegen for prototype
- * 
+ *
  */
 Function *PrototypeAST::codegen() {
 
@@ -513,7 +572,8 @@ Function *PrototypeAST::codegen() {
 
   // load correct types into prototype arguments list
   for (int i = 0; i < Args.size(); i++) {
-    if (Args[i] && Args[i]->Type.lexeme != "void")  //if void type, treat as if no arguments
+    if (Args[i] && Args[i]->Type.lexeme !=
+                       "void") // if void type, treat as if no arguments
       Arguments.push_back(getType(Args[i]->Type));
   }
 
@@ -532,12 +592,14 @@ Function *PrototypeAST::codegen() {
 }
 
 /**
- * Function*FunctionAST::codegen 
+ * Function*FunctionAST::codegen
  * codegen for function declaration
  */
 Function *FunctionAST::codegen() {
-  Scopes.push_back(std::map<std::string, AllocaInst *>());  //push new scope for parameters
-  Function *TheFunction = TheModule->getFunction(Proto->getName()); //check for existing function from previous extern 
+  Scopes.push_back(
+      std::map<std::string, AllocaInst *>()); // push new scope for parameters
+  Function *TheFunction = TheModule->getFunction(
+      Proto->getName()); // check for existing function from previous extern
 
   if (!TheFunction)
     TheFunction = Proto->codegen();
@@ -545,7 +607,7 @@ Function *FunctionAST::codegen() {
   if (!TheFunction)
     return nullptr;
 
-  //create block and set insert point
+  // create block and set insert point
   BasicBlock *BB = BasicBlock::Create(TheContext, "entry", TheFunction);
   Builder.SetInsertPoint(BB);
 
@@ -556,21 +618,21 @@ Function *FunctionAST::codegen() {
         TheFunction, std::string(Arg.getName()), Arg.getType());
     Builder.CreateStore(&Arg, Alloca);
 
-    Scopes.back()[std::string(Arg.getName())] = Alloca; //for parameter name, assign alloca in current scope 
+    Scopes.back()[std::string(Arg.getName())] =
+        Alloca; // for parameter name, assign alloca in current scope
   }
 
-  Body->codegen();  
+  Body->codegen();
 
-  verifyFunction(*TheFunction); //verify function
+  verifyFunction(*TheFunction); // verify function
 
-  Scopes.pop_back();  //pop scope
+  Scopes.pop_back(); // pop scope
 
   return TheFunction;
 }
 
-
 /**
- * * Value*IfAST::codegen 
+ * * Value*IfAST::codegen
  * codegen for if statements
  */
 Value *IfAST::codegen() {
@@ -617,7 +679,7 @@ Value *IfAST::codegen() {
   return nullptr;
 }
 /**
- * Value*WhileAST::codegen 
+ * Value*WhileAST::codegen
  * codegen for while loops
  */
 Value *WhileAST::codegen() {
@@ -663,8 +725,8 @@ Value *WhileAST::codegen() {
   return nullptr;
 }
 /**
- * Value*ReturnAST::codegen 
- * codegen for return 
+ * Value*ReturnAST::codegen
+ * codegen for return
  */
 Value *ReturnAST::codegen() {
   llvm::Type *FuncReturnType = Builder.getCurrentFunctionReturnType();
@@ -672,21 +734,21 @@ Value *ReturnAST::codegen() {
   if (Body) {
     // grab value from return body codegen
     Value *V = Body->codegen();
-    return_flag = 1;  // we have found a return 
+    return_flag = 1; // we have found a return
 
-    if (V->getType() != FuncReturnType) { //incorrect return type for function 
+    if (V->getType() != FuncReturnType) { // incorrect return type for function
       TOKEN tok = Tok;
       LogSemanticError(tok, "return type different to prototype type");
     }
     return Builder.CreateRet(V);
-  } else {  // return with no body so void
-    return_flag = 1;   //return found
+  } else {           // return with no body so void
+    return_flag = 1; // return found
     return Builder.CreateRetVoid();
   }
   return nullptr;
 }
 /**
- * Value*VarDeclAST::codegen 
+ * Value*VarDeclAST::codegen
  * codegen for variable declarations
  */
 Value *VarDeclAST::codegen() {
@@ -708,21 +770,21 @@ Value *VarDeclAST::codegen() {
 
   // Local declarations
   Function *TheFunction = Builder.GetInsertBlock()->getParent();
-  //create alloca entry for variable 
+  // create alloca entry for variable
   AllocaInst *Alloca =
       CreateEntryBlockAlloca(TheFunction, Name.lexeme, getType(Type));
 
   Builder.CreateStore(Constant::getNullValue(getType(Type)), Alloca);
-  //assign to current scope
+  // assign to current scope
   Scopes.back()[Name.lexeme] = Alloca;
   return nullptr;
 }
 /**
- * Value*VarAssignAST::codegen 
+ * Value*VarAssignAST::codegen
  * code gen for variable assign
  */
 Value *VarAssignAST::codegen() {
-  Value *Val = Expr->codegen(); //convert expression into value
+  Value *Val = Expr->codegen(); // convert expression into value
 
   int found_flag = 0; // check if variable has been found
 
@@ -768,7 +830,7 @@ Value *VarAssignAST::codegen() {
     return nullptr;
   }
 
-  //here we should not return null ptr as another assign may use this value 
-  // i.e. for cases such as x = y = 1
+  // here we should not return null ptr as another assign may use this value
+  //  i.e. for cases such as x = y = 1
   return Val;
 }
