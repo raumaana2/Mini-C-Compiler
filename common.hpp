@@ -1,6 +1,6 @@
 #ifndef COMMON_HPP
 #define COMMON_HPP
-
+//header file for common imports, token struct and token types enum
 #include "llvm/ADT/APFloat.h"
 #include "llvm/ADT/Optional.h"
 #include "llvm/ADT/STLExtras.h"
@@ -38,7 +38,6 @@
 #include <utility>
 #include <vector>
 #include <fstream>
-#include <stack>
 
 
 using namespace llvm;
@@ -118,6 +117,7 @@ struct TOKEN {
 
 extern FILE *pFile;
 
+//filename used for printing code line when error or warning occurs
 extern std::string fileName;
 
 //===----------------------------------------------------------------------===//

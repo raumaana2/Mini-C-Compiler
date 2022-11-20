@@ -14,7 +14,9 @@ public:
   virtual Value *codegen() = 0;
   virtual std::string to_string(int depth) const { return ""; };
 };
-
+/**
+ * AST for Program production that contains extern list and decl list
+ */
 class ProgramAST : public ASTNode {
   std::vector<std::unique_ptr<ASTNode>> ExternList;
   std::vector<std::unique_ptr<ASTNode>> DeclList;
@@ -28,7 +30,10 @@ public:
   std::string to_string(int depth) const override; 
 };
 
-// class for variable declaration structure
+/**
+ * AST for Variable declarations and contains attributes type and name of token type
+ * 
+ */
 class VarDeclAST : public ASTNode {
 
 public:
@@ -46,7 +51,10 @@ public:
   
 };
 
-
+/**
+ * AST for blocks and contains localdecls list and stmtlist
+ * 
+ */
 class BlockAST : public ASTNode {
   std::vector<std::unique_ptr<ASTNode>> LocalDecls;
   std::vector<std::unique_ptr<ASTNode>> StmtList;
@@ -61,8 +69,10 @@ public:
   std::string to_string(int depth) const override;
 };
 
-/// LiteralASTNode - class to store integer, float or boolean literals or
-/// indentifiers
+/**
+ * AST for literals such as integer literals, boolean literals, float literals and identifiers and 
+ * has token attribute that stores the value as a lexeme
+ */
 class LiteralASTNode : public ASTNode {
   TOKEN Tok;
 
@@ -75,7 +85,9 @@ public:
 };
 
 
-// Class for binary expressions
+/**
+ * AST for binary expressions and has attributes operator, LHS and RHS
+ */
 class BinaryExprAST : public ASTNode {
   TOKEN Op;
   std::unique_ptr<ASTNode> LHS, RHS;
@@ -93,7 +105,9 @@ public:
   }
 };
 
-// class for unary expressions
+/**
+ * AST for unary expressions and has attributes operator and expression
+ */
 class UnaryExprAST : public ASTNode {
   TOKEN Op;
   std::unique_ptr<ASTNode> Expr;
@@ -111,7 +125,9 @@ public:
   }
 };
 
-// class for function calls
+/**
+ * AST for function calls and has attributes callee name and a list of arguments 
+ */
 class CallExprAST : public ASTNode {
   TOKEN Callee;
   std::vector<std::unique_ptr<ASTNode>> Args;
@@ -129,8 +145,9 @@ public:
   }
 };
 
-// class for function signature (used for for both the function definition and
-// externs)
+/**
+ * AST for function prototypes and has attributes type, name and list of arguments
+ */
 class PrototypeAST : public ASTNode {
   TOKEN Type;
   TOKEN Name;
@@ -154,7 +171,9 @@ public:
   }
 };
 
-// class for function signature and body
+/**
+ * AST for function declaration which has attributes function prototype and body
+ */
 class FunctionAST : public ASTNode {
   std::unique_ptr<PrototypeAST> Proto;
   std::unique_ptr<BlockAST> Body;
@@ -168,7 +187,9 @@ public:
 
 };
 
-// class for if statement structure
+/**
+ * AST for if statments which has attributes condition, if body and else body
+ */
 class IfAST : public ASTNode {
   std::unique_ptr<ASTNode> Condition;
   std::unique_ptr<ASTNode> IfBody;
@@ -185,7 +206,9 @@ public:
   std::string to_string(int depth) const override;
 };
 
-// class for while statement structure
+/**
+ * AST for while loops and has attributes condition and body
+ */
 class WhileAST : public ASTNode {
   std::unique_ptr<ASTNode> Condition;
   std::unique_ptr<ASTNode> Body;
@@ -199,7 +222,9 @@ public:
   std::string to_string(int depth) const override;
 };
 
-// class for return statement structure
+/**
+ * AST for return statements and has attributes body
+ */
 class ReturnAST : public ASTNode {
   std::unique_ptr<ASTNode> Body;
   TOKEN Tok;
@@ -212,7 +237,9 @@ public:
 };
 
 
-// class for variable assignment structure
+/**
+ * AST for variable assignments and has attributes name and expression
+ */
 class VarAssignAST : public ASTNode {
   TOKEN Name;
   std::unique_ptr<ASTNode> Expr;

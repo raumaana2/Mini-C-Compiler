@@ -1,5 +1,4 @@
 #include "codegen.hpp"
-#include "error_reporting.hpp"
 
 using namespace llvm;
 using namespace llvm::sys;
@@ -7,10 +6,15 @@ using namespace llvm::sys;
 LLVMContext TheContext;
 IRBuilder<> Builder(TheContext);
 std::unique_ptr<Module> TheModule;
-// std::stack<std::string> WarningStack;
 
-int return_flag = 0;
-
+std::queue<std::tuple<TOKEN, std::string>> WarningQueue;  // queue for storing warnings which is printed after IR generated
+std::vector<std::map<std::string, AllocaInst *>> Scopes;  // vector of scopes
+std::map<std::string, GlobalVariable *> GlobalVariables;  // global scope
+int return_flag = 0;  //flag to see if return statement has been found
+/**
+ * AllocaInst*CreateEntryBlockAlloca 
+ * Create alloca entries 
+ */
 AllocaInst *CreateEntryBlockAlloca(Function *TheFunction,
                                    const std::string &VarName,
                                    llvm::Type *type) {
@@ -19,28 +23,52 @@ AllocaInst *CreateEntryBlockAlloca(Function *TheFunction,
 
   return TmpB.CreateAlloca(type, 0, VarName.c_str());
 }
-
-Value *Casting(Type *VarType, Value *NewVal, TOKEN tok) {
-  // create expression into 32 bit integer
+/**
+ * Value*Casting 
+ * 
+ * @param  {Type*} VarType    : Destination type
+ * @param  {Value*} NewVal    : Value we want to cast
+ * @param  {TOKEN} tok        : token for warnings
+ * @param  {bool} should_warn : determining if cast should give warning
+ */
+Value *Casting(Type *VarType, Value *NewVal, TOKEN tok, bool should_warn) {
+  TOKEN t = tok; //token used for warnings
+  //convert expression into 32 bit int
   if (VarType->isIntegerTy(32)) {
-    if (NewVal->getType()->isIntegerTy(32)) {
+    if (NewVal->getType()->isIntegerTy(32)) { 
       return NewVal;
     } else if (NewVal->getType()->isIntegerTy(1)) {
+      if (should_warn)
+        WarningQueue.push(std::tuple<TOKEN, std::string>(
+            tok, "implicit conversion from boolean to integer"));
+
       return Builder.CreateIntCast(NewVal, Type::getInt32Ty(TheContext), false,
                                    "btoi32");
     } else if (NewVal->getType()->isFloatTy()) {
+      if (should_warn)
+        WarningQueue.push(std::tuple<TOKEN, std::string>(
+            tok, "implicit conversion from float to integer"));
+
       return Builder.CreateFPToSI(NewVal, Type::getInt32Ty(TheContext),
                                   "ftoi32");
     }
     // convert expression into boolean
   } else if (VarType->isIntegerTy(1)) {
     if (NewVal->getType()->isIntegerTy(32)) {
+      if (should_warn)
+        WarningQueue.push(std::tuple<TOKEN, std::string>(
+            tok, "implicit conversion from integer to boolean"));
+
       return Builder.CreateICmpNE(
           NewVal, ConstantInt::get(Type::getInt32Ty(TheContext), false),
           "i32tob");
     } else if (NewVal->getType()->isIntegerTy(1)) {
+
       return NewVal;
     } else if (NewVal->getType()->isFloatTy()) {
+      if (should_warn)
+        WarningQueue.push(std::tuple<TOKEN, std::string>(
+            tok, "implicit conversion from float to boolean"));
 
       return Builder.CreateFCmpONE(
           NewVal, ConstantFP::get(TheContext, APFloat(0.0f)), "ftob");
@@ -48,9 +76,17 @@ Value *Casting(Type *VarType, Value *NewVal, TOKEN tok) {
     // convert expression to floating point
   } else if (VarType->isFloatTy()) {
     if (NewVal->getType()->isIntegerTy(32)) {
+      if (should_warn)
+        WarningQueue.push(std::tuple<TOKEN, std::string>(
+            tok, "implicit conversion from integer to float"));
+
       return Builder.CreateSIToFP(NewVal, Type::getFloatTy(TheContext),
                                   "i32tof");
     } else if (NewVal->getType()->isIntegerTy(1)) {
+      if (should_warn)
+        WarningQueue.push(std::tuple<TOKEN, std::string>(
+            tok, "implicit conversion from boolean to float"));
+
       return Builder.CreateSIToFP(NewVal, Type::getFloatTy(TheContext),
                                   "i1tof");
     } else if (NewVal->getType()->isFloatTy()) {
@@ -61,37 +97,41 @@ Value *Casting(Type *VarType, Value *NewVal, TOKEN tok) {
   return nullptr;
 }
 
-std::vector<std::map<std::string, AllocaInst *>> Scopes;
-std::map<std::string, GlobalVariable *> GlobalVariables;
-
+/**
+ * Value*ProgramAST::codegen 
+ * codegen externs and declarations
+ */
 Value *ProgramAST::codegen() {
-  for (int i = 0; i < ExternList.size(); i++) {
+  for (int i = 0; i < ExternList.size(); i++) { //codegen externs
     if (ExternList[i])
       ExternList[i]->codegen();
   }
 
-  for (int i = 0; i < DeclList.size(); i++) {
+  for (int i = 0; i < DeclList.size(); i++) { //codegen declarations
     if (DeclList[i])
       DeclList[i]->codegen();
   }
-
+  LogWarnings();  //print out warnings
   return nullptr;
 }
 
+/**
+ * Value*BlockAST::codegen 
+ * codegen local declarations and statements
+ */
 Value *BlockAST::codegen() {
-  llvm::Type *FuncReturnType = Builder.getCurrentFunctionReturnType();
-  Scopes.push_back(std::map<std::string, AllocaInst *>());
-  for (int i = 0; i < LocalDecls.size(); i++) {
+  llvm::Type *FuncReturnType = Builder.getCurrentFunctionReturnType();  //get function return type
+  Scopes.push_back(std::map<std::string, AllocaInst *>());  //new scope per block
+  for (int i = 0; i < LocalDecls.size(); i++) { //codegen local declarations
     if (LocalDecls[i])
       LocalDecls[i]->codegen();
   }
 
-  for (int i = 0; i < StmtList.size(); i++) {
+  for (int i = 0; i < StmtList.size(); i++) { //codegen statements
 
     if (StmtList[i]) {
-
-      auto StmtToReturn = dynamic_cast<ReturnAST *>(StmtList[i].get());
-
+      //cast statement into return ast and check if null and if not null, we generate return statement and terminate codegen early
+      auto StmtToReturn = dynamic_cast<ReturnAST *>(StmtList[i].get()); 
       if (StmtToReturn) {
         StmtToReturn->codegen();
         break;
@@ -99,73 +139,84 @@ Value *BlockAST::codegen() {
       StmtList[i]->codegen();
     }
   }
-  if (Scopes.size() == 2 && FuncReturnType->isVoidTy()) {
-    if (return_flag != 1) {
+  //we have exhausted all statements for this block, but we need to check if a return statement was found and if not
+  //check if function is void
+  if (Scopes.size() == 2 && FuncReturnType->isVoidTy()) { //scopes.size() == 2 means we are in a function block
+    if (return_flag != 1) { //no returns found but this is a void function so we generate retvoid 
       Builder.CreateRetVoid();
     }
-  } else if (Scopes.size() == 2 && !(FuncReturnType->isVoidTy())) {
-    if (return_flag != 1) {
+  } else if (Scopes.size() == 2 && !(FuncReturnType->isVoidTy())) { // non void function
+    if (return_flag != 1) { // no return found for non void function so semantic error
       TOKEN tok = Tok;
       LogSemanticError(tok, "no return for non-void function");
     }
   }
-  Scopes.pop_back();
+  Scopes.pop_back();  //we are finished with this scope
   return nullptr;
 }
-
+/**
+ * Value*LiteralASTNode::codegen 
+ * code gen for literals 
+ */
 Value *LiteralASTNode::codegen() {
   switch (Tok.type) {
   case (INT_LIT):
-    return ConstantInt::get(TheContext, APInt(32, std::stoi(Tok.lexeme), true));
-  case (FLOAT_LIT):
-    return ConstantFP::get(TheContext, APFloat(std::stof(Tok.lexeme)));
+    return ConstantInt::get(TheContext, APInt(32, std::stoi(Tok.lexeme), true));  //return integer literal by converting token lexeme to llvm constant
+  case (FLOAT_LIT): 
+    return ConstantFP::get(TheContext, APFloat(std::stof(Tok.lexeme))); //return float literal by converting token lexeme to llvm constant
 
   case (BOOL_LIT): {
-
-    int bool_ = (Tok.lexeme == "true") ? 1 : 0;
-    return ConstantInt::get(TheContext, APInt(1, bool_, false));
+    
+    int bool_ = (Tok.lexeme == "true") ? 1 : 0; //lexeme will be of of string true or false but we need to convert to numerical representation
+    return ConstantInt::get(TheContext, APInt(1, bool_, false)); //return bool literal by converting token lexeme to llvm constant
   }
-  case (IDENT):
+  case (IDENT): //identifiers
 
     AllocaInst *V;
 
+    //check scopes first to see if variable exists
     for (int i = Scopes.size() - 1; i >= 0; i--) {
       if (Scopes[i].count(Tok.lexeme) > 0) {
         V = Scopes[i][Tok.lexeme];
         break;
       }
     }
-
+    //if not found in any scope, check global variables
     if (!V) {
 
       GlobalVariable *G = GlobalVariables[Tok.lexeme];
-      if (!G) {
+      if (!G) { //variable not found, semantic error
         TOKEN t = Tok;
-        LogSemanticError(t, "use of undeclared identifier \"" + t.lexeme + "\"");
+        LogSemanticError(t,
+                         "use of undeclared identifier \"" + t.lexeme + "\"");
       }
-      return Builder.CreateLoad(G->getValueType(), G, Tok.lexeme);
+      return Builder.CreateLoad(G->getValueType(), G, Tok.lexeme);  //variable found as global variable, convert global variable to value pointer
     } else {
-      return Builder.CreateLoad(V->getAllocatedType(), V, Tok.lexeme);
+      return Builder.CreateLoad(V->getAllocatedType(), V, Tok.lexeme); //variable found in scopes, convert alloca to value pointer
     }
   }
 
   return nullptr;
 }
-
+/**
+ * Value*BinaryExprAST::codegen 
+ * codegen for binary expressions
+ */
 Value *BinaryExprAST::codegen() {
 
-  Value *left = LHS->codegen();
-  Value *right = RHS->codegen();
+  Value *left = LHS->codegen(); //convert LHS to value
+  Value *right = RHS->codegen();  //convert RHS to value
 
-  if (!left || !right) {
+  if (!left || !right) {  // if either lhs or rhs null then return null
     return nullptr;
   }
   switch (Op.type) {
   case (PLUS):
+
     // if either are floating point, we want to convert both to floating point
     if (left->getType()->isFloatTy() || right->getType()->isFloatTy()) {
-      left = Casting(Type::getFloatTy(TheContext), left, Op);
-      right = Casting(Type::getFloatTy(TheContext), right, Op);
+      left = Casting(Type::getFloatTy(TheContext), left, Op, false);
+      right = Casting(Type::getFloatTy(TheContext), right, Op, false);
 
       return Builder.CreateFAdd(left, right, "faddtmp");
     }
@@ -174,37 +225,44 @@ Value *BinaryExprAST::codegen() {
     return Builder.CreateAdd(left, right, "iaddtmp");
 
   case (MINUS):
+
     // if either are floating point, we want to convert both to floating point
     if (left->getType()->isFloatTy() || right->getType()->isFloatTy()) {
-      left = Casting(Type::getFloatTy(TheContext), left, Op);
-      right = Casting(Type::getFloatTy(TheContext), right, Op);
+      left = Casting(Type::getFloatTy(TheContext), left, Op, false);
+      right = Casting(Type::getFloatTy(TheContext), right, Op, false);
       return Builder.CreateFSub(left, right, "fsubtmp");
     }
     // otherwise there are no floating points so we do integer add which casts
     // bools to ints
     return Builder.CreateSub(left, right, "isubtmp");
+
   case (ASTERIX):
+
     if (left->getType()->isFloatTy() || right->getType()->isFloatTy()) {
-      left = Casting(Type::getFloatTy(TheContext), left, Op);
-      right = Casting(Type::getFloatTy(TheContext), right, Op);
+      left = Casting(Type::getFloatTy(TheContext), left, Op, false);
+      right = Casting(Type::getFloatTy(TheContext), right, Op, false);
       return Builder.CreateFMul(left, right, "fmultmp");
     }
     // otherwise there are no floating points so we do integer add which casts
     // bools to ints
     return Builder.CreateMul(left, right, "imultmp");
+
   case (DIV):
+
     if (left->getType()->isFloatTy() || right->getType()->isFloatTy()) {
-      left = Casting(Type::getFloatTy(TheContext), left, Op);
-      right = Casting(Type::getFloatTy(TheContext), right, Op);
+      left = Casting(Type::getFloatTy(TheContext), left, Op, false);
+      right = Casting(Type::getFloatTy(TheContext), right, Op, false);
       return Builder.CreateFDiv(left, right, "fdivtmp");
     }
     // otherwise there are no floating points so we do integer add which casts
     // bools to ints
     return Builder.CreateUDiv(left, right, "idivtmp");
+
   case (MOD):
+
     if (left->getType()->isFloatTy() || right->getType()->isFloatTy()) {
-      left = Casting(Type::getFloatTy(TheContext), left, Op);
-      right = Casting(Type::getFloatTy(TheContext), right, Op);
+      left = Casting(Type::getFloatTy(TheContext), left, Op, false);
+      right = Casting(Type::getFloatTy(TheContext), right, Op, false);
       return Builder.CreateFRem(left, right, "fmodtmp");
     }
     // otherwise there are no floating points so we do integer add which casts
@@ -213,81 +271,113 @@ Value *BinaryExprAST::codegen() {
 
   case (EQ):
 
-    left = Casting(Type::getFloatTy(TheContext), left, Op);
-    right = Casting(Type::getFloatTy(TheContext), right, Op);
+    left = Casting(Type::getFloatTy(TheContext), left, Op, false);
+    right = Casting(Type::getFloatTy(TheContext), right, Op, false);
     return Builder.CreateFCmpOEQ(left, right, "feqtmp");
+
   case (NE):
-    left = Casting(Type::getFloatTy(TheContext), left, Op);
-    right = Casting(Type::getFloatTy(TheContext), right, Op);
+
+    left = Casting(Type::getFloatTy(TheContext), left, Op, false);
+    right = Casting(Type::getFloatTy(TheContext), right, Op, false);
     return Builder.CreateFCmpONE(left, right, "fneqtmp");
+
   case (LE):
-    left = Casting(Type::getFloatTy(TheContext), left, Op);
-    right = Casting(Type::getFloatTy(TheContext), right, Op);
+
+    left = Casting(Type::getFloatTy(TheContext), left, Op, false);
+    right = Casting(Type::getFloatTy(TheContext), right, Op, false);
     return Builder.CreateFCmpOLE(left, right, "fletmp");
+
   case (LT):
-    left = Casting(Type::getFloatTy(TheContext), left, Op);
-    right = Casting(Type::getFloatTy(TheContext), right, Op);
+
+    left = Casting(Type::getFloatTy(TheContext), left, Op, false);
+    right = Casting(Type::getFloatTy(TheContext), right, Op, false);
     return Builder.CreateFCmpOLT(left, right, "flttmp");
+
   case (GE):
-    left = Casting(Type::getFloatTy(TheContext), left, Op);
-    right = Casting(Type::getFloatTy(TheContext), right, Op);
+
+    left = Casting(Type::getFloatTy(TheContext), left, Op, false);
+    right = Casting(Type::getFloatTy(TheContext), right, Op, false);
     return Builder.CreateFCmpOGE(left, right, "fgetmp");
+
   case (GT):
 
-    left = Casting(Type::getFloatTy(TheContext), left, Op);
-    right = Casting(Type::getFloatTy(TheContext), right, Op);
+    left = Casting(Type::getFloatTy(TheContext), left, Op, false);
+    right = Casting(Type::getFloatTy(TheContext), right, Op, false);
     return Builder.CreateFCmpOGT(left, right, "ffttmp");
+
   case (OR):
-    left = Casting(Type::getInt1Ty(TheContext), left, Op);
-    right = Casting(Type::getInt1Ty(TheContext), right, Op);
+
+    left = Casting(Type::getInt1Ty(TheContext), left, Op, false);
+    right = Casting(Type::getInt1Ty(TheContext), right, Op, false);
     return Builder.CreateOr(left, right, "ortmp");
+
   case (AND):
-    left = Casting(Type::getInt1Ty(TheContext), left, Op);
-    right = Casting(Type::getInt1Ty(TheContext), right, Op);
+    left = Casting(Type::getInt1Ty(TheContext), left, Op, false);
+    right = Casting(Type::getInt1Ty(TheContext), right, Op, false);
     return Builder.CreateAnd(left, right, "andtmp");
+
   }
+  TOKEN t = Op;
+  LogSemanticError(t, "invalid binary operator");
   return nullptr;
 }
-
+/**
+ * Value*UnaryExprAST::codegen 
+ * codegen for unary expressions
+ */
 Value *UnaryExprAST::codegen() {
-  Value *V = Expr->codegen();
+  Value *V = Expr->codegen(); //convert expression into value
 
-  if (!V)
+  if (!V) 
     return nullptr;
 
   switch (Op.type) {
-  case (NOT):
-    V = Casting(Type::getInt1Ty(TheContext), V, Op);
+  case (NOT): //! 
+
+    V = Casting(Type::getInt1Ty(TheContext), V, Op, false);
     return Builder.CreateNot(V, "nottmp");
-  case (MINUS):
-    if (V->getType()->isIntegerTy(1) || V->getType()->isIntegerTy(32)) {
-      V = Casting(Type::getInt32Ty(TheContext), V, Op);
+
+  case (MINUS)://-
+
+  //if integer value, then use CreateNeg otherwise use FNeg
+    if (V->getType()->isIntegerTy(1) || V->getType()->isIntegerTy(32)) {  
+      V = Casting(Type::getInt32Ty(TheContext), V, Op, false);
       return Builder.CreateNeg(V, "inegtmp");
     }
-    V = Casting(Type::getFloatTy(TheContext), V, Op);
+    V = Casting(Type::getFloatTy(TheContext), V, Op, false);
     return Builder.CreateFNeg(V, "fnegtmp");
-  }
 
+  }
+  TOKEN t = Op;
+  LogSemanticError(t, "invalid unary operator");
   return nullptr;
 }
-
+/**
+ * Value*CallExprAST::codegen 
+ * code gen for function calls
+ */
 Value *CallExprAST::codegen() {
   Function *CalleeF = TheModule->getFunction(Callee.lexeme);
 
-  //no such function exist
+  // no such function exist
   if (!CalleeF) {
     TOKEN t = Callee;
-    LogSemanticError(t, "undefined reference to \"" + t.lexeme + "\""); 
+    LogSemanticError(t, "undefined reference to \"" + t.lexeme + "\"");
     return nullptr;
   }
 
+  //if argument size does not match callee arg size
   if (CalleeF->arg_size() < Args.size()) {
     TOKEN t = Callee;
-    std::string message = "too many arguments to function call, expected " + std::to_string(CalleeF->arg_size()) + " but got " + std::to_string(Args.size());
+    std::string message = "too many arguments to function call, expected " +
+                          std::to_string(CalleeF->arg_size()) + " but got " +
+                          std::to_string(Args.size());
     LogSemanticError(t, message);
   } else if (CalleeF->arg_size() > Args.size()) {
     TOKEN t = Callee;
-    std::string message = "too few arguments to function call, expected " + std::to_string(CalleeF->arg_size()) + " but got " + std::to_string(Args.size());
+    std::string message = "too few arguments to function call, expected " +
+                          std::to_string(CalleeF->arg_size()) + " but got " +
+                          std::to_string(Args.size());
     LogSemanticError(t, message);
   }
 
@@ -295,17 +385,21 @@ Value *CallExprAST::codegen() {
 
   std::vector<Type *> ParameterTypes;
 
+  //push back arguments into callee parameter with correct type
   for (auto &Arg : CalleeF->args()) {
     ParameterTypes.push_back(Arg.getType());
   }
-
   for (int i = 0; i < Args.size(); i++) {
-    ArgsV.push_back(Casting(ParameterTypes[i], Args[i]->codegen(), Callee));
+    ArgsV.push_back(Casting(ParameterTypes[i], Args[i]->codegen(), Callee, true));
   }
 
   return Builder.CreateCall(CalleeF, ArgsV, "calltmp");
 }
-
+/**
+ * llvm::Type*getType 
+ * Given token, get respective Type* 
+ * @param  {TOKEN} t : token to get type from
+ */
 llvm::Type *getType(TOKEN t) {
   switch (t.type) {
   case (INT_TOK):
@@ -321,14 +415,18 @@ llvm::Type *getType(TOKEN t) {
   return nullptr;
 }
 
-// code generation for the prototype of a function
+/**
+ * Function*PrototypeAST::codegen 
+ * codegen for prototype
+ * 
+ */
 Function *PrototypeAST::codegen() {
 
   std::vector<llvm::Type *> Arguments;
 
   // load correct types into prototype arguments list
   for (int i = 0; i < Args.size(); i++) {
-    if (Args[i] && Args[i]->Type.lexeme != "void")
+    if (Args[i] && Args[i]->Type.lexeme != "void")  //if void type, treat as if no arguments
       Arguments.push_back(getType(Args[i]->Type));
   }
 
@@ -346,9 +444,13 @@ Function *PrototypeAST::codegen() {
   return F;
 }
 
+/**
+ * Function*FunctionAST::codegen 
+ * codegen for function declaration
+ */
 Function *FunctionAST::codegen() {
-  Scopes.push_back(std::map<std::string, AllocaInst *>());
-  Function *TheFunction = TheModule->getFunction(Proto->getName());
+  Scopes.push_back(std::map<std::string, AllocaInst *>());  //push new scope for parameters
+  Function *TheFunction = TheModule->getFunction(Proto->getName()); //check for existing function from previous extern 
 
   if (!TheFunction)
     TheFunction = Proto->codegen();
@@ -356,6 +458,7 @@ Function *FunctionAST::codegen() {
   if (!TheFunction)
     return nullptr;
 
+  //create block and set insert point
   BasicBlock *BB = BasicBlock::Create(TheContext, "entry", TheFunction);
   Builder.SetInsertPoint(BB);
 
@@ -366,19 +469,23 @@ Function *FunctionAST::codegen() {
         TheFunction, std::string(Arg.getName()), Arg.getType());
     Builder.CreateStore(&Arg, Alloca);
 
-    Scopes.back()[std::string(Arg.getName())] = Alloca;
+    Scopes.back()[std::string(Arg.getName())] = Alloca; //for parameter name, assign alloca in current scope 
   }
 
-  Body->codegen();
+  Body->codegen();  
 
-  verifyFunction(*TheFunction);
+  verifyFunction(*TheFunction); //verify function
 
-  Scopes.pop_back();
+  Scopes.pop_back();  //pop scope
 
   return TheFunction;
 }
 
-// code generation for IfElse/If statments
+
+/**
+ * * Value*IfAST::codegen 
+ * codegen for if statements
+ */
 Value *IfAST::codegen() {
   Scopes.push_back(std::map<std::string, AllocaInst *>());
   Function *TheFunction = Builder.GetInsertBlock()->getParent();
@@ -386,7 +493,7 @@ Value *IfAST::codegen() {
   // generate condition
   Value *cond = Condition->codegen();
 
-  // convert condition to bool by comparing != 0
+  // convert condition to bool by doing != 0
   Value *comp = Builder.CreateICmpNE(
       cond, ConstantInt::get(TheContext, APInt(1, 0, false)), "ifcond");
   // create blocks
@@ -422,7 +529,10 @@ Value *IfAST::codegen() {
   Scopes.pop_back();
   return nullptr;
 }
-
+/**
+ * Value*WhileAST::codegen 
+ * codegen for while loops
+ */
 Value *WhileAST::codegen() {
   Scopes.push_back(std::map<std::string, AllocaInst *>());
 
@@ -465,29 +575,35 @@ Value *WhileAST::codegen() {
   Scopes.pop_back();
   return nullptr;
 }
-
+/**
+ * Value*ReturnAST::codegen 
+ * codegen for return 
+ */
 Value *ReturnAST::codegen() {
   llvm::Type *FuncReturnType = Builder.getCurrentFunctionReturnType();
 
   if (Body) {
     // grab value from return body codegen
     Value *V = Body->codegen();
-    return_flag = 1;
+    return_flag = 1;  // we have found a return 
 
-    if (V->getType() != FuncReturnType) {
+    if (V->getType() != FuncReturnType) { //incorrect return type for function 
       TOKEN tok = Tok;
       LogSemanticError(tok, "return type different to prototype type");
     }
     return Builder.CreateRet(V);
-  } else {
-    return_flag = 1;
+  } else {  // return with no body so void
+    return_flag = 1;   //return found
     return Builder.CreateRetVoid();
   }
   return nullptr;
 }
-
+/**
+ * Value*VarDeclAST::codegen 
+ * codegen for variable declarations
+ */
 Value *VarDeclAST::codegen() {
-  // Global variables
+  // if scope empty that means it is a global variable
   if (Scopes.empty()) {
     if (GlobalVariables.count(Name.lexeme) >
         0) { // error redefinition of global variable
@@ -505,20 +621,23 @@ Value *VarDeclAST::codegen() {
 
   // Local declarations
   Function *TheFunction = Builder.GetInsertBlock()->getParent();
-
+  //create alloca entry for variable 
   AllocaInst *Alloca =
       CreateEntryBlockAlloca(TheFunction, Name.lexeme, getType(Type));
 
   Builder.CreateStore(Constant::getNullValue(getType(Type)), Alloca);
-
+  //assign to current scope
   Scopes.back()[Name.lexeme] = Alloca;
   return nullptr;
 }
-
+/**
+ * Value*VarAssignAST::codegen 
+ * code gen for variable assign
+ */
 Value *VarAssignAST::codegen() {
-  Value *Val = Expr->codegen();
+  Value *Val = Expr->codegen(); //convert expression into value
 
-  int found_flag = 0;
+  int found_flag = 0; // check if variable has been found
 
   if (!Val) {
 
@@ -530,7 +649,7 @@ Value *VarAssignAST::codegen() {
     if (Scopes[i].count(Name.lexeme) > 0) {
       Function *TheFunction = Builder.GetInsertBlock()->getParent();
       AllocaInst *Alloca = Scopes[i][Name.lexeme];
-      Value *CastedVal = Casting(Alloca->getAllocatedType(), Val, Name);
+      Value *CastedVal = Casting(Alloca->getAllocatedType(), Val, Name, false);
       Builder.CreateStore(CastedVal, Alloca);
       Scopes[i][Name.lexeme] = Alloca;
 
@@ -547,7 +666,7 @@ Value *VarAssignAST::codegen() {
 
     GlobalVariable *gAlloca = GlobalVariables.at(Name.lexeme);
 
-    Value *CastedVal = Casting(gAlloca->getValueType(), Val, Name);
+    Value *CastedVal = Casting(gAlloca->getValueType(), Val, Name, false);
 
     Builder.CreateStore(CastedVal, gAlloca);
 
@@ -562,5 +681,7 @@ Value *VarAssignAST::codegen() {
     return nullptr;
   }
 
+  //here we should not return null ptr as another assign may use this value 
+  // i.e. for cases such as x = y = 1
   return Val;
 }

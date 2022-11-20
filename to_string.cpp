@@ -1,5 +1,10 @@
 #include "ast_node.hpp"
 
+
+/**
+ * respective to string methods for each ast node
+ */
+
 std::string ProgramAST::to_string(int depth) const {
   std::string whitespace(depth, ' ');
   std::string list_elements = "";

@@ -12,6 +12,9 @@
 TOKEN CurTok;
 std::deque<TOKEN> tok_buffer;
 
+/**
+ * get next token from buffer
+ */
 TOKEN getNextToken() {
 
   if (tok_buffer.size() == 0)
@@ -23,8 +26,23 @@ TOKEN getNextToken() {
   return CurTok = temp;
 }
 
+/**
+ * @brief  
+ * @note   put back token into buffer
+ * @param  tok: token to put back into buffer
+ * @retval None
+ */
 void putBackToken(TOKEN tok) { tok_buffer.push_front(tok); }
 
+
+/**
+ * @brief  
+ * @note   checks if curtok matches token we want to consume and if they dont match
+ *          then throw a syntax error
+ * @param  word: symbol to match
+ * @param  symbol: symbol that needed to be matched, used by LogSymbolError(tok, symbol)
+ * @retval None
+ */
 void match(int word, std::string symbol) {
   if (CurTok.type == word) {
     getNextToken();
@@ -38,6 +56,11 @@ void match(int word, std::string symbol) {
 // Recursive Descent Parser - Function call for each production
 //===----------------------------------------------------------------------===//
 
+/**
+ * @brief  
+ * @note   begin parser here 
+ * @retval a unique pointer to program ast
+ */
 std::unique_ptr<ASTNode> parser() {
   auto program_scope = program();
 
@@ -51,17 +74,22 @@ std::unique_ptr<ASTNode> parser() {
 }
 
 // program -> extern_list decl_list | decl_list
+/**
+ * @brief  
+ * @note  builds list for either extern list and decl list or just decl list
+ * @retval unique pointer to ast node
+ */
 std::unique_ptr<ASTNode> program() {
   std::vector<std::unique_ptr<ASTNode>> extern_vector;
   std::vector<std::unique_ptr<ASTNode>> decl_vector;
-
+  
   switch (CurTok.type) {
-  case (EXTERN):
+  case (EXTERN):  // first set that choose extern_list and decl_list
     extern_list(extern_vector);
   case (BOOL_TOK):
   case (FLOAT_TOK):
   case (INT_TOK):
-  case (VOID_TOK): {
+  case (VOID_TOK): { //first set that chooses only decl_list
     decl_list(decl_vector);
     auto scope = std::make_unique<ProgramAST>(std::move(extern_vector),
                                             std::move(decl_vector));
@@ -73,14 +101,28 @@ std::unique_ptr<ASTNode> program() {
   LogSyntaxError(tok, "expected extern or bool or float or int or void");
 }
 
+
+
 // extern_list -> extern extern_list_prime
+/**
+ * @brief  
+ * @note   builds extern list
+ * @param  &list: extern list 
+ * @retval None
+ */
 void extern_list(std::vector<std::unique_ptr<ASTNode>> &list) {
-  auto _extern_ = extern_();
+  auto _extern_ = extern_();  
   list.push_back(std::move(_extern_));
   extern_list_prime(list);
 }
 
 // extern_list_prime -> extern extern_list_prime | epsilon
+/**
+ * @brief  
+ * @note   builds extern list 
+ * @param  &list: extern_list 
+ * @retval None
+ */
 void extern_list_prime(std::vector<std::unique_ptr<ASTNode>> &list) {
 
   switch (CurTok.type) {
@@ -88,8 +130,8 @@ void extern_list_prime(std::vector<std::unique_ptr<ASTNode>> &list) {
   case (FLOAT_TOK):
   case (BOOL_TOK):
   case (VOID_TOK):
-    return;
-  case (EXTERN):
+    return; //follow set meaning we should terminate list building 
+  case (EXTERN):  // first set so we continue list building
     auto _extern_ = extern_();
     list.push_back(std::move(_extern_));
     extern_list_prime(list);
@@ -100,6 +142,11 @@ void extern_list_prime(std::vector<std::unique_ptr<ASTNode>> &list) {
 }
 
 // extern -> "extern" type_spec IDENT "(" params ")" ";"
+/**
+ * @brief  
+ * @note   build extern function definition
+ * @retval unique pointer to prototype ast
+ */
 std::unique_ptr<ASTNode> extern_() {
   match(EXTERN, "extern");
   auto type = type_spec();
@@ -107,7 +154,7 @@ std::unique_ptr<ASTNode> extern_() {
   TOKEN identifier = CurTok;
   match(IDENT, "an identifier"); // consume identifier
 
-  match(LPAR, "("); // consumer (
+  match(LPAR, "("); // consume (
 
   auto parameters = params();
   match(RPAR, ")");
@@ -119,6 +166,12 @@ std::unique_ptr<ASTNode> extern_() {
 }
 
 // decl_list -> decl decl_list_prime
+/**
+ * @brief  
+ * @note   build decl list
+ * @param  &list: decl_list
+ * @retval None
+ */
 void decl_list(std::vector<std::unique_ptr<ASTNode>> &list) {
 
   auto declaration = decl();
@@ -127,8 +180,14 @@ void decl_list(std::vector<std::unique_ptr<ASTNode>> &list) {
 }
 
 // decl_list -> decl decl_list_prime | epsilon
+/**
+ * @brief  
+ * @note   build decl list
+ * @param  &list: decl_list
+ * @retval None
+ */
 void decl_list_prime(std::vector<std::unique_ptr<ASTNode>> &list) {
-  if (CurTok.type != EOF_TOK) {
+  if (CurTok.type != EOF_TOK) { //if eof token, this is part of follow set of decl_list_prime so we stop list building
     auto declaration = decl();
     list.push_back(std::move(declaration));
     decl_list_prime(list);
@@ -153,6 +212,12 @@ TOKEN peekll3() {
 }
 
 // decl -> var_decl | fun_decl
+/**
+ * @brief  
+ * @note   decl function that decides between function declaration or variable declaration
+ * @retval unique pointer to variable or function declaration
+ */
+
 std::unique_ptr<ASTNode> decl() {
   switch (CurTok.type) {
   case (VOID_TOK): // only fun_decl uses "void"
@@ -160,7 +225,6 @@ std::unique_ptr<ASTNode> decl() {
   case (INT_TOK):
   case (FLOAT_TOK):
   case (BOOL_TOK):
-
     TOKEN lookahead = peekll3();
     switch (lookahead.type) {
     case (SC): // a ";" follows an identifier in a variable declaration
@@ -174,6 +238,11 @@ std::unique_ptr<ASTNode> decl() {
 }
 
 // var_decl -> var_type IDENT ";"
+/**
+ * @brief  
+ * @note   function to deal with variable declarations
+ * @retval unique pointer to variable declaration 
+ */
 std::unique_ptr<VarDeclAST> var_decl() {
   TOKEN type = var_type();
   TOKEN name = CurTok;
@@ -184,12 +253,18 @@ std::unique_ptr<VarDeclAST> var_decl() {
   return std::move(variable_declaration);
 }
 
+//fun_decl -> type_spec IDENT "(" params ")" block
+/**
+ * @brief  
+ * @note   function to deal with function declaration 
+ * @retval unique pointer to function declaration 
+ */
 std::unique_ptr<FunctionAST> fun_decl() {
   auto type = type_spec();
   TOKEN identifier = CurTok;
 
-  match(IDENT, "an identifier"); // consume identifier
-  match(LPAR, "(");  // consumer identifier
+  match(IDENT, "an identifier"); 
+  match(LPAR, "(");  
   std::vector<std::unique_ptr<VarDeclAST>> parameters = params();
 
   match(RPAR, ")");
@@ -204,6 +279,12 @@ std::unique_ptr<FunctionAST> fun_decl() {
   return std::move(function);
 }
 
+//var_type -> "int" | "float" | "bool"
+/**
+ * @brief  
+ * @note  type that can be used by variable or function declaration 
+ * @retval token of type
+ */
 TOKEN var_type() {
   switch (CurTok.type) {
   case (INT_TOK):
@@ -217,6 +298,13 @@ TOKEN var_type() {
   LogSyntaxError(tok, "expected bool or float or int or void");
 }
 
+//type_spec -> "void"| var_type
+/**
+ * @brief  
+ * @note   function declaration is only allowed void type otherwise check if int, float or bool
+ * @retval token of type
+ */
+
 TOKEN type_spec() {
   if (CurTok.type == VOID_TOK) {
     TOKEN type = CurTok;
@@ -226,6 +314,12 @@ TOKEN type_spec() {
   return var_type();
 }
 
+//params -> param_list | "void" | ϵ
+/**
+ * @brief  
+ * @note  function used to build parameter list or check if no parameters or if has void parameter
+ * @retval unique pointer 
+ */
 std::vector<std::unique_ptr<VarDeclAST>> params() {
 
   std::vector<std::unique_ptr<VarDeclAST>> parameter_list;
@@ -239,26 +333,41 @@ std::vector<std::unique_ptr<VarDeclAST>> params() {
 
     param_list(parameter_list);
     return std::move(parameter_list);
-  case (VOID_TOK):
+  case (VOID_TOK):  //void tok is special case so we just push a token of void type
     TOKEN tok = CurTok;
     match(VOID_TOK, "void");
     auto void_ = std::make_unique<VarDeclAST>(tok, tok);
     parameter_list.push_back(std::move(void_));
-    // parameter_list.push_back(std::move(std::make_unique<VoidASTNode>(tok)));
     return std::move(parameter_list);
   }
   TOKEN tok = CurTok;
   LogSyntaxError(tok, "expected \"(\" or \"bool\" or \"float\" or \"int\" or \"void\"");
 }
 
+
+
+// param_list -> param param_list_prime
+/**
+ * @brief  
+ * @note   builds list of parameters
+ * @param  &list: parameter list 
+ * @retval None
+ */
 void param_list(std::vector<std::unique_ptr<VarDeclAST>> &list) {
   auto parameter = param();
   list.push_back(std::move(parameter));
   param_list_prime(list);
 }
 
+//param_list_prime -> "," param param_list_prime | ϵ
+/**
+ * @brief  
+ * @note   builds list of parameters
+ * @param  &list: parameter list 
+ * @retval None
+ */
 void param_list_prime(std::vector<std::unique_ptr<VarDeclAST>> &list) {
-  if (CurTok.type != RPAR) {
+  if (CurTok.type != RPAR) {  //when ")", then there are no more arguments
     match(COMMA, ",");
     auto parameter = param();
     list.push_back(std::move(parameter));
@@ -268,6 +377,12 @@ void param_list_prime(std::vector<std::unique_ptr<VarDeclAST>> &list) {
   }
 }
 
+//param -> var_type IDENT
+/**
+ * @brief  
+ * @note   builds parameter
+ * @retval unique pointer to parameter represented as variable declaration
+ */
 std::unique_ptr<VarDeclAST> param() {
   TOKEN type = var_type();
   TOKEN name = CurTok;
@@ -276,6 +391,13 @@ std::unique_ptr<VarDeclAST> param() {
   return std::move(parameter);
 }
 
+
+//block -> "{" local_decls stmt_list "}"
+/**
+ * @brief  
+ * @note   builds block ast with local declaration list and statement list
+ * @retval unique pointer to block ast
+ */
 std::unique_ptr<BlockAST> block() {
   match(LBRA, "{");
   std::vector<std::unique_ptr<ASTNode>> local_declaration_list;
@@ -297,6 +419,14 @@ std::unique_ptr<BlockAST> block() {
   return std::move(scope);
 }
 
+
+//local_decls -> local_decls_prime
+/**
+ * @brief  
+ * @note   
+ * @param  &list: 
+ * @retval None
+ */
 void local_decls(std::vector<std::unique_ptr<ASTNode>> &list) {
   local_decls_prime(list);
 }

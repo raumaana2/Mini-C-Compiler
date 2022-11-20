@@ -53,10 +53,10 @@ int main(int argc, char **argv) {
   // Run the parser now.
   auto test = parser();
   // llvm::outs() << test << "\n";
-  std::cout << test->to_string(0) << std::endl;
+  std::cout << test->to_string(0) << std::endl; //print ast tree
   fprintf(stderr, "Parsing Finished\n");
 
-  test->codegen();
+  test->codegen();  //run codegen
   //********************* Start printing final IR **************************
   // Print out all of the generated code into a file called output.ll
   auto Filename = "output.ll";

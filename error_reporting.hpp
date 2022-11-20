@@ -3,10 +3,11 @@
 
 #include "common.hpp"
 
-extern std::stack<std::tuple<TOKEN, std::string> > WarningStack;
+//queue for warnings found during codegen and stores a tuple of token and warning message
+extern std::queue<std::tuple<TOKEN, std::string>> WarningQueue; 
 
 
-void LinePrinter(TOKEN tok);
+void LinePrinter(TOKEN tok, bool exit_flag);
 
 void LogSymbolError(TOKEN tok, std::string symbol);
 
