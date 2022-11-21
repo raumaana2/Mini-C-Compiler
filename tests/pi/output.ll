@@ -69,4 +69,5 @@ end:                                              ; preds = %else, %then
 end23:                                            ; preds = %end, %before
   %PI24 = load float, ptr %PI, align 4
   ret float %PI24
+  ret float 0.000000e+00
 }

@@ -1,5 +1,4 @@
 #include "codegen.hpp"
-#include "ast_node.hpp"
 
 using namespace llvm;
 using namespace llvm::sys;
@@ -124,13 +123,12 @@ Value *BlockAST::codegen() {
   }
 
   for (int i = 0; i < StmtList.size(); i++) { // codegen statements
-
     if (StmtList[i]) {
       // cast statement into return ast and check if null and if not null, we
       // generate return statement and terminate codegen early
       auto StmtToReturn = dynamic_cast<ReturnAST *>(StmtList[i].get());
       if (StmtToReturn) {
-        StmtToReturn->codegen();
+        StmtToReturn->codegen(); 
         break;
       }
       StmtList[i]->codegen();
@@ -148,9 +146,10 @@ Value *BlockAST::codegen() {
   } else if (Scopes.size() == 2 &&
              !(FuncReturnType->isVoidTy())) { // non void function
     if (return_flag !=
-        1) { // no return found for non void function so semantic error
+        1) { // no return found for non void function so warn
       TOKEN tok = Tok;
-      LogSemanticError(tok, "no return for non-void function");
+      WarningQueue.push(std::tuple<TOKEN, std::string>(
+          tok, "non-void function does not return a value in all control paths"));
     }
   }
   Scopes.pop_back(); // we are finished with this scope
@@ -218,6 +217,14 @@ Value *LiteralASTNode::codegen() {
   return nullptr;
 }
 
+/**
+ * @brief  
+ *  Lazy evalution for OR ||
+ * @param  lhs: LHS of Binary expression AST
+ * @param  rhs: RHS of Binary expression AST
+ * @param  tok: tok for casting
+ * @retval 
+ */
 Value *LazyOr(std::unique_ptr<ASTNode> lhs, std::unique_ptr<ASTNode> rhs,
               TOKEN tok) {
   Function *TheFunction = Builder.GetInsertBlock()->getParent();
@@ -262,6 +269,14 @@ Value *LazyOr(std::unique_ptr<ASTNode> lhs, std::unique_ptr<ASTNode> rhs,
   return Builder.CreateLoad(Alloca->getAllocatedType(), Alloca, "finalortruth");
 }
 
+/**
+ * @brief  
+ *  Lazy evalution for AND &&
+ * @param  lhs: LHS of Binary expression AST
+ * @param  rhs: RHS of Binary expression AST
+ * @param  tok: tok for casting
+ * @retval 
+ */
 Value *LazyAnd(std::unique_ptr<ASTNode> lhs, std::unique_ptr<ASTNode> rhs,
                TOKEN tok) {
   Function *TheFunction = Builder.GetInsertBlock()->getParent();
@@ -321,17 +336,11 @@ Value *BinaryExprAST::codegen() {
 
     TOKEN o = Op;
     return LazyAnd(std::move(LHS), std::move(RHS), o);
-    // left = Casting(Type::getInt1Ty(TheContext), left, Op, false);
-    // right = Casting(Type::getInt1Ty(TheContext), right, Op, false);
-    // return Builder.CreateAnd(left, right, "andtmp");
   }
   case (OR): {
 
     TOKEN o = Op;
     return LazyOr(std::move(LHS), std::move(RHS), o);
-    // left = Casting(Type::getInt1Ty(TheContext), left, Op, false);
-    // right = Casting(Type::getInt1Ty(TheContext), right, Op, false);
-    // return Builder.CreateOr(left, right, "ortmp");
   }
   }
 
@@ -435,23 +444,6 @@ Value *BinaryExprAST::codegen() {
     left = Casting(Type::getFloatTy(TheContext), left, Op);
     right = Casting(Type::getFloatTy(TheContext), right, Op);
     return Builder.CreateFCmpOGT(left, right, "ffttmp");
-
-    // case (OR): {
-
-    //   TOKEN o = Op;
-    //   return LazyOr(std::move(LHS), std::move(RHS), o);
-    //   // left = Casting(Type::getInt1Ty(TheContext), left, Op, false);
-    //   // right = Casting(Type::getInt1Ty(TheContext), right, Op, false);
-    //   // return Builder.CreateOr(left, right, "ortmp");
-    // }
-
-    // case (AND): {
-    //   TOKEN o = Op;
-    //   return LazyAnd(std::move(LHS), std::move(RHS), o);
-    //   // left = Casting(Type::getInt1Ty(TheContext), left, Op, false);
-    //   // right = Casting(Type::getInt1Ty(TheContext), right, Op, false);
-    //   // return Builder.CreateAnd(left, right, "andtmp");
-    // }
   }
   TOKEN t = Op;
   LogSemanticError(t, "invalid binary operator");
@@ -536,7 +528,7 @@ Value *CallExprAST::codegen() {
  * Given token, get respective Type*
  * @param  {TOKEN} t : token to get type from
  */
-llvm::Type *getType(TOKEN t) {
+llvm::Type *getTokenType(TOKEN t) {
   switch (t.type) {
   case (INT_TOK):
     return Type::getInt32Ty(TheContext);
@@ -564,10 +556,10 @@ Function *PrototypeAST::codegen() {
   for (int i = 0; i < Args.size(); i++) {
     if (Args[i] && Args[i]->Type.lexeme !=
                        "void") // if void type, treat as if no arguments
-      Arguments.push_back(getType(Args[i]->Type));
+      Arguments.push_back(getTokenType(Args[i]->Type));
   }
 
-  FunctionType *FT = FunctionType::get(getType(Type), Arguments, false);
+  FunctionType *FT = FunctionType::get(getTokenType(Type), Arguments, false);
 
   Function *F = Function::Create(FT, Function::ExternalLinkage, Name.lexeme,
                                  TheModule.get());
@@ -580,6 +572,8 @@ Function *PrototypeAST::codegen() {
 
   return F;
 }
+
+
 
 /**
  * Function*FunctionAST::codegen
@@ -618,6 +612,12 @@ Function *FunctionAST::codegen() {
 
   Scopes.pop_back(); // pop scope
 
+  //make a return incase function block doesn't have return 
+  if (Builder.getCurrentFunctionReturnType()->isVoidTy()) {
+    Builder.CreateRetVoid();
+  } else {
+    Builder.CreateRet(Constant::getNullValue(Builder.getCurrentFunctionReturnType()));
+  }
   return TheFunction;
 }
 
@@ -751,8 +751,8 @@ Value *VarDeclAST::codegen() {
     }
 
     GlobalVariable *g = new GlobalVariable(
-        *(TheModule.get()), getType(Type), false, GlobalValue::CommonLinkage,
-        Constant::getNullValue(getType(Type)));
+        *(TheModule.get()), getTokenType(Type), false, GlobalValue::CommonLinkage,
+        Constant::getNullValue(getTokenType(Type)));
 
     GlobalVariables[Name.lexeme] = g;
     return nullptr;
@@ -762,9 +762,9 @@ Value *VarDeclAST::codegen() {
   Function *TheFunction = Builder.GetInsertBlock()->getParent();
   // create alloca entry for variable
   AllocaInst *Alloca =
-      CreateEntryBlockAlloca(TheFunction, Name.lexeme, getType(Type));
+      CreateEntryBlockAlloca(TheFunction, Name.lexeme, getTokenType(Type));
 
-  Builder.CreateStore(Constant::getNullValue(getType(Type)), Alloca);
+  Builder.CreateStore(Constant::getNullValue(getTokenType(Type)), Alloca);
   // assign to current scope
   Scopes.back()[Name.lexeme] = Alloca;
   return nullptr;

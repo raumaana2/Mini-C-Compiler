@@ -67,4 +67,5 @@ entry:
   store float %faddtmp38, ptr %sum, align 4
   %sum39 = load float, ptr %sum, align 4
   ret float %sum39
+  ret float 0.000000e+00
 }

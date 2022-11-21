@@ -30,6 +30,7 @@ else:                                             ; preds = %entry
 end:                                              ; preds = %else, %then
   %result5 = load i32, ptr %result, align 4
   ret i32 %result5
+  ret i32 0
 }
 
 define i32 @rfact(i32 %n) {
@@ -39,4 +40,5 @@ entry:
   %n2 = load i32, ptr %n1, align 4
   %calltmp = call i32 @multiplyNumbers(i32 %n2)
   ret i32 %calltmp
+  ret i32 0
 }

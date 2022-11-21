@@ -38,4 +38,5 @@ else:                                             ; preds = %entry
 end:                                              ; preds = %else, %then
   %result12 = load i32, ptr %result, align 4
   ret i32 %result12
+  ret i32 0
 }

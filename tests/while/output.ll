@@ -36,4 +36,5 @@ loop:                                             ; preds = %before
 end:                                              ; preds = %loop, %before
   %result4 = load i32, ptr %result, align 4
   ret i32 %result4
+  ret i32 0
 }

@@ -61,4 +61,5 @@ else:                                             ; preds = %end
 end12:                                            ; preds = %else, %then
   %result13 = load i1, ptr %result, align 1
   ret i1 %result13
+  ret i1 false
 }

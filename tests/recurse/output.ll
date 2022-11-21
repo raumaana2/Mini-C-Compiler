@@ -35,6 +35,7 @@ end:                                              ; preds = %else, %then
   %calltmp7 = call i32 @print_int(i32 %result6)
   %result8 = load i32, ptr %result, align 4
   ret i32 %result8
+  ret i32 0
 }
 
 define i32 @recursion_driver(i32 %num) {
@@ -44,4 +45,5 @@ entry:
   %num2 = load i32, ptr %num1, align 4
   %calltmp = call i32 @addNumbers(i32 %num2)
   ret i32 %calltmp
+  ret i32 0
 }

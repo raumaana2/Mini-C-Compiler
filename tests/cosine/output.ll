@@ -63,4 +63,5 @@ end:                                              ; preds = %loop, %before
   %calltmp = call float @print_float(float %cos19)
   %cos20 = load float, ptr %cos, align 4
   ret float %cos20
+  ret float 0.000000e+00
 }

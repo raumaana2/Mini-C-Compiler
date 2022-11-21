@@ -36,4 +36,5 @@ loop:                                             ; preds = %before
 end:                                              ; preds = %loop, %before
   %factorial8 = load i32, ptr %factorial, align 4
   ret i32 %factorial8
+  ret i32 0
 }

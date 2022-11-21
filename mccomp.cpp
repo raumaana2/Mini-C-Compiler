@@ -67,7 +67,7 @@ int main(int argc, char **argv) {
     errs() << "Could not open file: " << EC.message();
     return 1;
   }
-  // TheModule->print(errs(), nullptr); // print IR to terminal
+  TheModule->print(errs(), nullptr); // print IR to terminal
   TheModule->print(dest, nullptr);
   //********************* End printing final IR ****************************
 

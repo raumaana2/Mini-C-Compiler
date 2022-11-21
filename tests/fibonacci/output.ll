@@ -75,4 +75,5 @@ end20:                                            ; preds = %end, %before
   %calltmp22 = call i32 @print_int(i32 %total21)
   %total23 = load i32, ptr %total, align 4
   ret i32 %total23
+  ret i32 0
 }

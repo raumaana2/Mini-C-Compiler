@@ -30,4 +30,5 @@ loop:                                             ; preds = %before
 
 end:                                              ; preds = %loop, %before
   ret void
+  ret void
 }
