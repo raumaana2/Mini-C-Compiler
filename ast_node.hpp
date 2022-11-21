@@ -12,7 +12,7 @@ class ASTNode {
 public:
   virtual ~ASTNode() {}
   virtual Value *codegen() = 0;
-  virtual std::string to_string(int depth) const { return ""; };
+  virtual std::string to_string(std::string prefix) const { return ""; };
 };
 /**
  * AST for Program production that contains extern list and decl list
@@ -27,7 +27,7 @@ public:
       : ExternList(std::move(externList)), DeclList(std::move(declList)) {}
 
   Value *codegen() override;
-  std::string to_string(int depth) const override; 
+  std::string to_string(std::string prefix) const override; 
 };
 
 /**
@@ -45,7 +45,7 @@ public:
 
   Value* codegen() override;
 
-  std::string to_string(int depth) const override;
+  std::string to_string(std::string prefix) const override;
 
   
   
@@ -66,7 +66,7 @@ public:
       : Tok(tok) ,LocalDecls(std::move(localDecls)), StmtList(std::move(stmtList)) {}
 
   Value *codegen() override;
-  std::string to_string(int depth) const override;
+  std::string to_string(std::string prefix) const override;
 };
 
 /**
@@ -80,7 +80,7 @@ public:
   LiteralASTNode(TOKEN tok) : Tok(tok) {}
 
   Value *codegen() override;
-  std::string to_string(int depth) const override;
+  std::string to_string(std::string prefix) const override;
   
 };
 
@@ -99,7 +99,7 @@ public:
 
   Value *codegen() override;
 
-  std::string to_string(int depth) const override;
+  std::string to_string(std::string prefix) const override;
   std::string getOp() {
     return Op.lexeme;
   }
@@ -118,7 +118,7 @@ public:
 
   Value *codegen() override;
 
-  std::string to_string(int depth) const override;
+  std::string to_string(std::string prefix) const override;
 
   std::string getOp() {
     return Op.lexeme;
@@ -138,7 +138,7 @@ public:
 
   Value *codegen() override;
 
-  std::string to_string(int depth) const override;
+  std::string to_string(std::string prefix) const override;
 
   std::string getCallee() {
     return Callee.lexeme;
@@ -160,7 +160,7 @@ public:
 
   Function *codegen() override;
 
-  std::string to_string(int depth) const override;
+  std::string to_string(std::string prefix) const override;
 
   std::string getName() {
     return Name.lexeme;
@@ -183,7 +183,7 @@ public:
               std::unique_ptr<BlockAST> body)
       : Proto(std::move(proto)), Body(std::move(body)) {}
   Function *codegen() override;
-  std::string to_string(int depth) const override;
+  std::string to_string(std::string prefix) const override;
 
 };
 
@@ -203,7 +203,7 @@ public:
 
   Value *codegen() override;
 
-  std::string to_string(int depth) const override;
+  std::string to_string(std::string prefix) const override;
 };
 
 /**
@@ -219,7 +219,7 @@ public:
 
   Value *codegen() override;
 
-  std::string to_string(int depth) const override;
+  std::string to_string(std::string prefix) const override;
 };
 
 /**
@@ -233,7 +233,7 @@ public:
 
   Value* codegen() override; 
 
-  std::string to_string(int depth) const override;
+  std::string to_string(std::string prefix) const override;
 };
 
 
@@ -250,7 +250,7 @@ public:
 
   Value* codegen() override;
 
-  std::string to_string(int depth) const override;
+  std::string to_string(std::string prefix) const override;
 };
 
 

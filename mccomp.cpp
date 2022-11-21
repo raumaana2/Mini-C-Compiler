@@ -53,7 +53,7 @@ int main(int argc, char **argv) {
   // Run the parser now.
   auto test = parser();
   // llvm::outs() << test << "\n";
-  std::cout << test->to_string(0) << std::endl; //print ast tree
+  std::cout << test->to_string("") << std::endl; //print ast tree
   fprintf(stderr, "Parsing Finished\n");
 
   test->codegen();  //run codegen
@@ -67,7 +67,7 @@ int main(int argc, char **argv) {
     errs() << "Could not open file: " << EC.message();
     return 1;
   }
-  TheModule->print(errs(), nullptr); // print IR to terminal
+  // TheModule->print(errs(), nullptr); // print IR to terminal
   TheModule->print(dest, nullptr);
   //********************* End printing final IR ****************************
 

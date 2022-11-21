@@ -43,8 +43,6 @@ Value *Casting(Type *VarType, Value *NewVal, TOKEN tok) {
       return NewVal;
     } else if (NewVal->getType()->isIntegerTy(1)) {
 
-      WarningQueue.push(std::tuple<TOKEN, std::string>(
-          tok, "implicit conversion from boolean to integer"));
 
       return Builder.CreateIntCast(NewVal, Type::getInt32Ty(TheContext), false,
                                    "btoi32");
@@ -60,8 +58,6 @@ Value *Casting(Type *VarType, Value *NewVal, TOKEN tok) {
   } else if (VarType->isIntegerTy(1)) {
     if (NewVal->getType()->isIntegerTy(32)) {
 
-      WarningQueue.push(std::tuple<TOKEN, std::string>(
-          tok, "implicit conversion from integer to boolean"));
 
       return Builder.CreateICmpNE(
           NewVal, ConstantInt::get(Type::getInt32Ty(TheContext), false),
@@ -71,8 +67,6 @@ Value *Casting(Type *VarType, Value *NewVal, TOKEN tok) {
       return NewVal;
     } else if (NewVal->getType()->isFloatTy()) {
 
-      WarningQueue.push(std::tuple<TOKEN, std::string>(
-          tok, "implicit conversion from float to boolean"));
 
       return Builder.CreateFCmpONE(
           NewVal, ConstantFP::get(TheContext, APFloat(0.0f)), "ftob");
@@ -81,17 +75,13 @@ Value *Casting(Type *VarType, Value *NewVal, TOKEN tok) {
   } else if (VarType->isFloatTy()) {
     if (NewVal->getType()->isIntegerTy(32)) {
 
-      WarningQueue.push(std::tuple<TOKEN, std::string>(
-          tok, "implicit conversion from integer to float"));
 
       return Builder.CreateSIToFP(NewVal, Type::getFloatTy(TheContext),
                                   "i32tof");
     } else if (NewVal->getType()->isIntegerTy(1)) {
 
-      WarningQueue.push(std::tuple<TOKEN, std::string>(
-          tok, "implicit conversion from boolean to float"));
 
-      return Builder.CreateSIToFP(NewVal, Type::getFloatTy(TheContext),
+      return Builder.CreateUIToFP(NewVal, Type::getFloatTy(TheContext),
                                   "i1tof");
     } else if (NewVal->getType()->isFloatTy()) {
       return NewVal;
@@ -237,7 +227,7 @@ Value *LazyOr(std::unique_ptr<ASTNode> lhs, std::unique_ptr<ASTNode> rhs,
   Builder.CreateStore(ConstantInt::get(TheContext, APInt(1, 0, false)), Alloca);
 
   Value *cond =
-      Casting(Type::getInt1Ty(TheContext), lhs->codegen(), tok, false);
+      Casting(Type::getInt1Ty(TheContext), lhs->codegen(), tok);
 
   Value *comp = Builder.CreateICmpNE(
       cond, ConstantInt::get(TheContext, APInt(1, 0, false)), "lazyorleft");
@@ -252,7 +242,7 @@ Value *LazyOr(std::unique_ptr<ASTNode> lhs, std::unique_ptr<ASTNode> rhs,
 
   Builder.SetInsertPoint(rhs_);
   Value *right_cond =
-      Casting(Type::getInt1Ty(TheContext), rhs->codegen(), tok, false);
+      Casting(Type::getInt1Ty(TheContext), rhs->codegen(), tok);
   Value *right_comp = Builder.CreateICmpNE(
       right_cond, ConstantInt::get(TheContext, APInt(1, 0, false)),
       "lazyorright");
@@ -281,7 +271,7 @@ Value *LazyAnd(std::unique_ptr<ASTNode> lhs, std::unique_ptr<ASTNode> rhs,
   Builder.CreateStore(ConstantInt::get(TheContext, APInt(1, 0, false)), Alloca);
 
   Value *cond =
-      Casting(Type::getInt1Ty(TheContext), lhs->codegen(), tok, false);
+      Casting(Type::getInt1Ty(TheContext), lhs->codegen(), tok);
   Value *comp = Builder.CreateICmpNE(
       cond, ConstantInt::get(TheContext, APInt(1, 0, false)), "lazyandleft");
 
@@ -296,7 +286,7 @@ Value *LazyAnd(std::unique_ptr<ASTNode> lhs, std::unique_ptr<ASTNode> rhs,
   Builder.SetInsertPoint(rhs_);
 
   Value *r = rhs->codegen();
-  Value *right_cond = Casting(Type::getInt1Ty(TheContext), r, tok, false);
+  Value *right_cond = Casting(Type::getInt1Ty(TheContext), r, tok);
 
   Value *right_comp = Builder.CreateICmpNE(
       right_cond, ConstantInt::get(TheContext, APInt(1, 0, false)),
@@ -356,8 +346,8 @@ Value *BinaryExprAST::codegen() {
 
     // if either are floating point, we want to convert both to floating point
     if (left->getType()->isFloatTy() || right->getType()->isFloatTy()) {
-      left = Casting(Type::getFloatTy(TheContext), left, Op, false);
-      right = Casting(Type::getFloatTy(TheContext), right, Op, false);
+      left = Casting(Type::getFloatTy(TheContext), left, Op);
+      right = Casting(Type::getFloatTy(TheContext), right, Op);
 
       return Builder.CreateFAdd(left, right, "faddtmp");
     }
@@ -369,8 +359,8 @@ Value *BinaryExprAST::codegen() {
 
     // if either are floating point, we want to convert both to floating point
     if (left->getType()->isFloatTy() || right->getType()->isFloatTy()) {
-      left = Casting(Type::getFloatTy(TheContext), left, Op, false);
-      right = Casting(Type::getFloatTy(TheContext), right, Op, false);
+      left = Casting(Type::getFloatTy(TheContext), left, Op);
+      right = Casting(Type::getFloatTy(TheContext), right, Op);
       return Builder.CreateFSub(left, right, "fsubtmp");
     }
     // otherwise there are no floating points so we do integer add which casts
@@ -380,8 +370,8 @@ Value *BinaryExprAST::codegen() {
   case (ASTERIX):
 
     if (left->getType()->isFloatTy() || right->getType()->isFloatTy()) {
-      left = Casting(Type::getFloatTy(TheContext), left, Op, false);
-      right = Casting(Type::getFloatTy(TheContext), right, Op, false);
+      left = Casting(Type::getFloatTy(TheContext), left, Op);
+      right = Casting(Type::getFloatTy(TheContext), right, Op);
       return Builder.CreateFMul(left, right, "fmultmp");
     }
     // otherwise there are no floating points so we do integer add which casts
@@ -391,8 +381,8 @@ Value *BinaryExprAST::codegen() {
   case (DIV):
 
     if (left->getType()->isFloatTy() || right->getType()->isFloatTy()) {
-      left = Casting(Type::getFloatTy(TheContext), left, Op, false);
-      right = Casting(Type::getFloatTy(TheContext), right, Op, false);
+      left = Casting(Type::getFloatTy(TheContext), left, Op);
+      right = Casting(Type::getFloatTy(TheContext), right, Op);
       return Builder.CreateFDiv(left, right, "fdivtmp");
     }
     // otherwise there are no floating points so we do integer add which casts
@@ -402,8 +392,8 @@ Value *BinaryExprAST::codegen() {
   case (MOD):
 
     if (left->getType()->isFloatTy() || right->getType()->isFloatTy()) {
-      left = Casting(Type::getFloatTy(TheContext), left, Op, false);
-      right = Casting(Type::getFloatTy(TheContext), right, Op, false);
+      left = Casting(Type::getFloatTy(TheContext), left, Op);
+      right = Casting(Type::getFloatTy(TheContext), right, Op);
       return Builder.CreateFRem(left, right, "fmodtmp");
     }
     // otherwise there are no floating points so we do integer add which casts
@@ -412,38 +402,38 @@ Value *BinaryExprAST::codegen() {
 
   case (EQ):
 
-    left = Casting(Type::getFloatTy(TheContext), left, Op, false);
-    right = Casting(Type::getFloatTy(TheContext), right, Op, false);
+    left = Casting(Type::getFloatTy(TheContext), left, Op);
+    right = Casting(Type::getFloatTy(TheContext), right, Op);
     return Builder.CreateFCmpOEQ(left, right, "feqtmp");
 
   case (NE):
 
-    left = Casting(Type::getFloatTy(TheContext), left, Op, false);
-    right = Casting(Type::getFloatTy(TheContext), right, Op, false);
+    left = Casting(Type::getFloatTy(TheContext), left, Op);
+    right = Casting(Type::getFloatTy(TheContext), right, Op);
     return Builder.CreateFCmpONE(left, right, "fneqtmp");
 
   case (LE):
 
-    left = Casting(Type::getFloatTy(TheContext), left, Op, false);
-    right = Casting(Type::getFloatTy(TheContext), right, Op, false);
+    left = Casting(Type::getFloatTy(TheContext), left, Op);
+    right = Casting(Type::getFloatTy(TheContext), right, Op);
     return Builder.CreateFCmpOLE(left, right, "fletmp");
 
   case (LT):
 
-    left = Casting(Type::getFloatTy(TheContext), left, Op, false);
-    right = Casting(Type::getFloatTy(TheContext), right, Op, false);
+    left = Casting(Type::getFloatTy(TheContext), left, Op);
+    right = Casting(Type::getFloatTy(TheContext), right, Op);
     return Builder.CreateFCmpOLT(left, right, "flttmp");
 
   case (GE):
 
-    left = Casting(Type::getFloatTy(TheContext), left, Op, false);
-    right = Casting(Type::getFloatTy(TheContext), right, Op, false);
+    left = Casting(Type::getFloatTy(TheContext), left, Op);
+    right = Casting(Type::getFloatTy(TheContext), right, Op);
     return Builder.CreateFCmpOGE(left, right, "fgetmp");
 
   case (GT):
 
-    left = Casting(Type::getFloatTy(TheContext), left, Op, false);
-    right = Casting(Type::getFloatTy(TheContext), right, Op, false);
+    left = Casting(Type::getFloatTy(TheContext), left, Op);
+    right = Casting(Type::getFloatTy(TheContext), right, Op);
     return Builder.CreateFCmpOGT(left, right, "ffttmp");
 
     // case (OR): {
@@ -480,17 +470,17 @@ Value *UnaryExprAST::codegen() {
   switch (Op.type) {
   case (NOT): //!
 
-    V = Casting(Type::getInt1Ty(TheContext), V, Op, false);
+    V = Casting(Type::getInt1Ty(TheContext), V, Op);
     return Builder.CreateNot(V, "nottmp");
 
   case (MINUS): //-
 
     // if integer value, then use CreateNeg otherwise use FNeg
     if (V->getType()->isIntegerTy(1) || V->getType()->isIntegerTy(32)) {
-      V = Casting(Type::getInt32Ty(TheContext), V, Op, false);
+      V = Casting(Type::getInt32Ty(TheContext), V, Op);
       return Builder.CreateNeg(V, "inegtmp");
     }
-    V = Casting(Type::getFloatTy(TheContext), V, Op, false);
+    V = Casting(Type::getFloatTy(TheContext), V, Op);
     return Builder.CreateFNeg(V, "fnegtmp");
   }
   TOKEN t = Op;
@@ -536,7 +526,7 @@ Value *CallExprAST::codegen() {
   }
   for (int i = 0; i < Args.size(); i++) {
     ArgsV.push_back(
-        Casting(ParameterTypes[i], Args[i]->codegen(), Callee, true));
+        Casting(ParameterTypes[i], Args[i]->codegen(), Callee));
   }
 
   return Builder.CreateCall(CalleeF, ArgsV, "calltmp");
@@ -798,7 +788,7 @@ Value *VarAssignAST::codegen() {
     if (Scopes[i].count(Name.lexeme) > 0) {
       Function *TheFunction = Builder.GetInsertBlock()->getParent();
       AllocaInst *Alloca = Scopes[i][Name.lexeme];
-      Value *CastedVal = Casting(Alloca->getAllocatedType(), Val, Name, false);
+      Value *CastedVal = Casting(Alloca->getAllocatedType(), Val, Name);
       Builder.CreateStore(CastedVal, Alloca);
       Scopes[i][Name.lexeme] = Alloca;
 
@@ -815,7 +805,7 @@ Value *VarAssignAST::codegen() {
 
     GlobalVariable *gAlloca = GlobalVariables.at(Name.lexeme);
 
-    Value *CastedVal = Casting(gAlloca->getValueType(), Val, Name, false);
+    Value *CastedVal = Casting(gAlloca->getValueType(), Val, Name);
 
     Builder.CreateStore(CastedVal, gAlloca);
 
